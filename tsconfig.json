@@ -1,0 +1,50 @@
+{
+  // Standalone typecheck/build config for the OpenBiliClaw DSH plugin.
+  // The DSH workspace toolchain lives in the deployment checkout; type
+  // dependencies resolve against its built lib/types outputs through the
+  // paths below (the plugin package is NOT a pnpm workspace member).
+  // <dsh> = /Users/white/.dsh/source/current (the deployment's active checkout).
+  "compilerOptions": {
+    "target": "es2024",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "lib": ["ES2024", "DOM", "DOM.Iterable"],
+    "types": ["node"],
+    "typeRoots": ["/Users/white/.dsh/source/current/node_modules/@types"],
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
+    "verbatimModuleSyntax": false,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "declaration": true,
+    "sourceMap": true,
+    "declarationMap": true,
+    "ignoreDeprecations": "6.0",
+    "rootDir": "src",
+    "outDir": "lib/types",
+    "baseUrl": ".",
+    "paths": {
+      "node": ["/Users/white/.dsh/source/current/node_modules/@types/node"],
+      "cordis": ["/Users/white/.dsh/source/current/vendor/cordis/lib/types/index.d.ts"],
+      "@deepseek-ai/dsh-tools": ["/Users/white/.dsh/source/current/packages/core/tools/lib/types/index.d.ts"],
+      "@deepseek-ai/dsh-session": ["/Users/white/.dsh/source/current/packages/core/session/lib/types/index.d.ts"],
+      "@deepseek-ai/dsh-llm": ["/Users/white/.dsh/source/current/packages/llm/llm/lib/types/index.d.ts"],
+      "@deepseek-ai/dsh-bash": ["/Users/white/.dsh/source/current/packages/bash/bash/lib/types/index.d.ts"],
+      "@deepseek-ai/dsh-skill": ["/Users/white/.dsh/source/current/packages/skill/skill/lib/types/index.d.ts"],
+      "@deepseek-ai/dsh-client-runtime": ["/Users/white/.dsh/source/current/packages/client/runtime/lib/types/index.d.ts"],
+      "@deepseek-ai/dsh-client-runtime/client": ["/Users/white/.dsh/source/current/packages/client/runtime/lib/types/client/index.d.ts"],
+      "@deepseek-ai/dsh-client-ui-slots": ["/Users/white/.dsh/source/current/packages/client/ui-slots/lib/types/index.d.ts"],
+      "@deepseek-ai/dsh-client-ui-layout": ["/Users/white/.dsh/source/current/packages/client/ui-layout/lib/types/index.d.ts"],
+      "@deepseek-ai/dsh-client-ui-theme/client": ["/Users/white/.dsh/source/current/packages/client/ui-theme/lib/types/client/index.d.ts"],
+      "@deepseek-ai/dsh-client-ui-layout/client": ["/Users/white/.dsh/source/current/packages/client/ui-layout/lib/types/client/index.d.ts"],
+      "react": ["/Users/white/.dsh/source/current/node_modules/.pnpm/@types+react@18.3.31/node_modules/@types/react"],
+      "react/jsx-runtime": ["/Users/white/.dsh/source/current/node_modules/.pnpm/@types+react@18.3.31/node_modules/@types/react/jsx-runtime.d.ts"]
+    }
+  },
+  "include": ["src"]
+}
