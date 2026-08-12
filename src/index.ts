@@ -17,7 +17,7 @@
  * @module @openbiliclaw/dsh-plugin
  */
 import { readFileSync } from 'node:fs'
-import type { Context } from 'cordis'
+import type { Context } from '@deepseek-ai/cordis'
 import { createBridge, type BridgeConfig } from './bridge.ts'
 import { registerBridgeTools } from './tools.ts'
 import { loadAdapterSkill } from './skill.ts'
@@ -25,8 +25,9 @@ import { loadAdapterSkill } from './skill.ts'
 /** Plugin id for loader rows. */
 export const name = 'openbiliclaw'
 
-/** Required services: the tool registry, the skill registry, and bash. */
-export const inject = ['tools', 'skills', 'bash']
+/** Required services: the tool registry, the skill registry, and the shell
+ *  executor (the renamed `bash` seam in newer DSH snapshots). */
+export const inject = ['tools', 'skills', 'shell']
 
 /** Raw row config (no schema — every field defaults in code). */
 export interface OpenBiliClawRowConfig {
@@ -64,7 +65,7 @@ function resolveConfig(config: OpenBiliClawRowConfig | undefined): BridgeConfig 
  */
 export function apply(ctx: Context, config?: OpenBiliClawRowConfig): void {
   const resolved = resolveConfig(config)
-  const bridge = createBridge(ctx.bash, resolved)
+  const bridge = createBridge(ctx.shell, resolved)
   const logger = ctx.logger('openbiliclaw')
   ctx.effect(() => registerBridgeTools(ctx, bridge), 'openbiliclaw: bridge tools')
 

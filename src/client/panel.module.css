@@ -1663,15 +1663,23 @@
 
 .pinnedFooter {
   flex: none;
-  padding: 8px 14px 10px;
+  padding: 9px 14px 12px;
   border-top: 1px solid var(--obc-line);
-  background: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.5);
   backdrop-filter: blur(18px);
 }
 
+/* The footer inside the pinned bar is flat text (no card): the double white
+   card-on-bar layering read as an out-of-place block. */
 .pinnedFooter .activityFooter {
   margin: 0;
-  border-radius: 12px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  border-radius: 0;
+  padding: 6px 2px 2px;
+  gap: 5px;
 }
 
 /* ── card actions v2 (popup interactions) ────────────────────────────── */
@@ -3906,4 +3914,15 @@
 
 .panel[data-dark='true'] .delightHeroFallback {
   background: linear-gradient(145deg, rgba(251, 114, 153, 0.16), rgba(90, 169, 255, 0.12));
+}
+
+.panel[data-dark='true'] .pinnedFooter {
+  background: rgba(21, 22, 26, 0.7);
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+.panel[data-dark='true'] .pinnedFooter .activityFooter {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
 }

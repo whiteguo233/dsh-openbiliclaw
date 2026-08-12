@@ -1,7 +1,8 @@
-import type { Context } from 'cordis';
+import type { Context } from '@deepseek-ai/cordis';
 /** Plugin id for loader rows. */
 export declare const name = "openbiliclaw";
-/** Required services: the tool registry, the skill registry, and bash. */
+/** Required services: the tool registry, the skill registry, and the shell
+ *  executor (the renamed `bash` seam in newer DSH snapshots). */
 export declare const inject: string[];
 /** Raw row config (no schema — every field defaults in code). */
 export interface OpenBiliClawRowConfig {

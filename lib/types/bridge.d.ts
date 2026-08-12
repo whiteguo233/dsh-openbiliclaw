@@ -6,7 +6,7 @@
  * errors — the skill's working rules: parse JSON, surface errors, stop.
  * @module @openbiliclaw/dsh-plugin
  */
-import type { BashExecRequest, BashRunResult } from '@deepseek-ai/dsh-bash';
+import type { ShellExecRequest, ShellExecSpec, ShellRunResult } from '@deepseek-ai/dsh-shell';
 import type { JsonValue } from '@deepseek-ai/dsh-session';
 /** Resolved plugin config (defaults applied in the plugin entry). */
 export interface BridgeConfig {
@@ -42,15 +42,17 @@ export interface BridgeError {
 /** Parse the bridge CLI's single JSON line from captured stdout. */
 export declare function parseBridgeLine(stdout: string): BridgeOk | BridgeError;
 /**
- * Build the bridge face over the harness bash service. Commands run with the
- * checkout as workdir so `config.toml` / `data/` resolve exactly like the
- * running backend's; the default pythonBin is that checkout's `.venv`.
- * @param bash - the harness bash service (ctx.bash).
+ * Build the bridge face over the harness shell service (the renamed `bash`
+ * seam in newer DSH snapshots; both expose the same resolve/run surface).
+ * Commands run with the checkout as workdir so `config.toml` / `data/`
+ * resolve exactly like the running backend's; the default pythonBin is that
+ * checkout's `.venv`.
+ * @param shell - the harness shell service (ctx.shell).
  * @param config - resolved plugin config.
  * @returns the bridge face.
  */
-export declare function createBridge(bash: {
-    resolve(request: BashExecRequest): unknown;
-    run(spec: unknown): Promise<BashRunResult>;
+export declare function createBridge(shell: {
+    resolve(request: ShellExecRequest): ShellExecSpec;
+    run(spec: ShellExecSpec): Promise<ShellRunResult>;
 }, config: BridgeConfig): Bridge;
 //# sourceMappingURL=bridge.d.ts.map

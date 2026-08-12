@@ -31,10 +31,11 @@
     "paths": {
       "node": ["/Users/white/.dsh/source/current/node_modules/@types/node"],
       "cordis": ["/Users/white/.dsh/source/current/vendor/cordis/lib/types/index.d.ts"],
+      "@deepseek-ai/cordis": ["/Users/white/.dsh/source/current/vendor/cordis/lib/types/index.d.ts"],
       "@deepseek-ai/dsh-tools": ["/Users/white/.dsh/source/current/packages/core/tools/lib/types/index.d.ts"],
       "@deepseek-ai/dsh-session": ["/Users/white/.dsh/source/current/packages/core/session/lib/types/index.d.ts"],
       "@deepseek-ai/dsh-llm": ["/Users/white/.dsh/source/current/packages/llm/llm/lib/types/index.d.ts"],
-      "@deepseek-ai/dsh-bash": ["/Users/white/.dsh/source/current/packages/bash/bash/lib/types/index.d.ts"],
+      "@deepseek-ai/dsh-shell": ["/Users/white/.dsh/source/current/packages/shell/shell/lib/types/index.d.ts"],
       "@deepseek-ai/dsh-skill": ["/Users/white/.dsh/source/current/packages/skill/skill/lib/types/index.d.ts"],
       "@deepseek-ai/dsh-client-runtime": ["/Users/white/.dsh/source/current/packages/client/runtime/lib/types/index.d.ts"],
       "@deepseek-ai/dsh-client-runtime/client": ["/Users/white/.dsh/source/current/packages/client/runtime/lib/types/client/index.d.ts"],

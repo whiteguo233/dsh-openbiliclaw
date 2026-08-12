@@ -5,7 +5,6 @@
  * @module @openbiliclaw/dsh-plugin
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import { fetchHealth, readApiBase } from './api.ts'
 import { BRAND_ICON } from './brandIcon.ts'
 import { LiveClient, type LiveEvent } from './live.ts'
@@ -31,8 +30,11 @@ export interface OpenBiliClawInjected {
   onThemeChange: (listener: (dark: boolean) => void) => () => void
 }
 
-/** Full props: runtime share (owner params + standard kit) + injected face. */
-export type OpenBiliClawPanelProps = PropsRuntime<'aside'> & OpenBiliClawInjected
+/** Panel props: the business face injected by the aside slot registration.
+ *  (Newer DSH snapshots narrow the aside owner share to column geometry and
+ *  drop the occupant inject slot; the registration inject face is the only
+ *  share this panel consumes.) */
+export type OpenBiliClawPanelProps = OpenBiliClawInjected
 
 type TabKey = 'recommend' | 'library' | 'chat' | 'profile'
 

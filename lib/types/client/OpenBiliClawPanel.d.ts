@@ -1,4 +1,3 @@
-import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
 /** Business face injected by the aside slot registration. */
 export interface OpenBiliClawInjected {
     /** Close the aside panel (layout service transition). */
@@ -8,8 +7,11 @@ export interface OpenBiliClawInjected {
     /** Subscribe to shell theme changes. Returns the unsubscriber. */
     onThemeChange: (listener: (dark: boolean) => void) => () => void;
 }
-/** Full props: runtime share (owner params + standard kit) + injected face. */
-export type OpenBiliClawPanelProps = PropsRuntime<'aside'> & OpenBiliClawInjected;
+/** Panel props: the business face injected by the aside slot registration.
+ *  (Newer DSH snapshots narrow the aside owner share to column geometry and
+ *  drop the occupant inject slot; the registration inject face is the only
+ *  share this panel consumes.) */
+export type OpenBiliClawPanelProps = OpenBiliClawInjected;
 /**
  * The aside occupant: OpenBiliClaw user-consumption sidebar.
  * @param props - runtime share + injected actions.
