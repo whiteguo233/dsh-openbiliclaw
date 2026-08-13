@@ -459,4 +459,8 @@ export declare function fetchUpdateStatus(base: string, signal?: AbortSignal): P
 export declare function checkBackendUpdate(base: string, signal?: AbortSignal): Promise<unknown>;
 /** Start applying a backend update (backend restarts afterwards). */
 export declare function applyBackendUpdate(base: string, tag: string, signal?: AbortSignal): Promise<unknown>;
+/** GET /api/project-stats — the project summary used by the GitHub star prompt. */
+export declare function fetchProjectStats(base: string, signal?: AbortSignal): Promise<{
+    githubStars: number;
+}>;
 //# sourceMappingURL=api.d.ts.map

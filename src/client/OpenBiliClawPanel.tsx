@@ -5,7 +5,7 @@
  * @module @openbiliclaw/dsh-plugin
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { fetchHealth, readApiBase } from './api.ts'
+import { fetchHealth, fetchProjectStats, readApiBase } from './api.ts'
 import { BRAND_ICON } from './brandIcon.ts'
 import { LiveClient, type LiveEvent } from './live.ts'
 import { ActivityFooter, RecommendView } from './views.tsx'
@@ -16,7 +16,7 @@ import {
   hydrateDrawer, MessagesDrawer, probeKey,
   type DelightNotice, type ProbeNotice, type RecommendationNotice,
 } from './notifications.tsx'
-import { MessageIcon, ChatIcon, CollapseIcon, GearIcon, LibraryIcon, ProfileIcon, SparkleIcon } from './icons.tsx'
+import { MessageIcon, ChatIcon, CollapseIcon, GearIcon, GithubStarIcon, LibraryIcon, MonitorIcon, ProfileIcon, SparkleIcon } from './icons.tsx'
 import { SettingsOverlay } from './settings.tsx'
 import css from './panel.module.css'
 
@@ -37,6 +37,19 @@ export interface OpenBiliClawInjected {
 export type OpenBiliClawPanelProps = OpenBiliClawInjected
 
 type TabKey = 'recommend' | 'library' | 'chat' | 'profile'
+
+/** The project's GitHub repo (GitHub star prompt, mirroring the popup). */
+const STAR_REPO_URL = 'https://github.com/whiteguo233/OpenBiliClaw'
+const STAR_COUNT_CACHE_KEY = 'obc:starCount'
+const STAR_COUNT_TTL_MS = 12 * 60 * 60 * 1000
+
+/** Compact star count (the popup's `_formatStarCount`). */
+function formatStarCount(n: number): string {
+  if (!Number.isFinite(n)) return ''
+  if (n >= 10000) return `${Math.round(n / 1000)}k`
+  if (n >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k`
+  return String(Math.round(n))
+}
 
 /** Canonical tab structure (same IA as the mobile web + extension popup). */
 const TABS: Array<{ key: TabKey; label: string; icon: (props: { size?: number }) => React.JSX.Element }> = [
@@ -64,9 +77,33 @@ export function OpenBiliClawPanel({ closeAside, isDark, onThemeChange }: OpenBil
   const [delights, setDelights] = useState<DelightNotice[]>([])
   const [notifications, setNotifications] = useState<RecommendationNotice[]>([])
   const [drawerError, setDrawerError] = useState('')
+  const [starCount, setStarCount] = useState('')
   const handledProbes = useRef<Set<string>>(new Set())
   const probeRef = useRef<ProbeNotice[]>([])
   probeRef.current = probes
+
+  // GitHub star prompt: fetch the count through the backend (ETag/rate-limit
+  // handled server-side) with a 12h localStorage cache, like the popup.
+  useEffect(() => {
+    let cachedTime = 0
+    try {
+      const raw = localStorage.getItem(STAR_COUNT_CACHE_KEY)
+      if (raw !== null) {
+        const parsed = JSON.parse(raw) as { n?: unknown; t?: unknown }
+        const n = Number(parsed.n)
+        if (Number.isFinite(n) && n > 0) setStarCount(formatStarCount(n))
+        cachedTime = typeof parsed.t === 'number' ? parsed.t : 0
+      }
+    } catch { /* ignore unreadable cache */ }
+    if (Date.now() - cachedTime < STAR_COUNT_TTL_MS) return
+    let cancelled = false
+    void fetchProjectStats(base).then(({ githubStars }) => {
+      if (cancelled || githubStars <= 0) return
+      setStarCount(formatStarCount(githubStars))
+      try { localStorage.setItem(STAR_COUNT_CACHE_KEY, JSON.stringify({ n: githubStars, t: Date.now() })) } catch { /* ignore */ }
+    })
+    return () => { cancelled = true }
+  }, [base])
 
   // Connection probe: HTTP health is the single source of truth for the
   // status dot (the WebSocket alone flaps in background tabs and must not
@@ -211,6 +248,14 @@ export function OpenBiliClawPanel({ closeAside, isDark, onThemeChange }: OpenBil
             </span>
           </span>
         </div>
+        <button type="button" className={css.iconButton} title="电脑版：在浏览器中打开 Web 版" onClick={() => { window.open(`${base}/`, '_blank', 'noopener') }}>
+          <MonitorIcon size={15} />
+        </button>
+        <button type="button" className={css.starButton} title="在 GitHub 给 OpenBiliClaw 点个 Star" onClick={() => { window.open(STAR_REPO_URL, '_blank', 'noopener') }}>
+          <GithubStarIcon size={14} />
+          <span className={css.starLabel}>Star</span>
+          {starCount !== '' ? <span className={css.starCount}>{starCount}</span> : null}
+        </button>
         <button type="button" className={css.iconButton} title="消息" onClick={openDrawer}>
           <MessageIcon size={15} />
           {messageCount > 0 ? <span className={css.bellBadge}>{messageCount > 99 ? '99+' : messageCount}</span> : null}

@@ -30,5 +30,9 @@ export declare function ExternalIcon({ size }: IconProps): React.JSX.Element;
 export declare function ClockIcon({ size }: IconProps): React.JSX.Element;
 /** 收藏 star icon. */
 export declare function StarIcon({ size }: IconProps): React.JSX.Element;
+/** 电脑版 web 入口 icon — the popup's monitor (web) button. */
+export declare function MonitorIcon({ size }: IconProps): React.JSX.Element;
+/** GitHub star mark — the popup's gh-star-mark (filled). */
+export declare function GithubStarIcon({ size }: IconProps): React.JSX.Element;
 export {};
 //# sourceMappingURL=icons.d.ts.map

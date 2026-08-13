@@ -1020,3 +1020,15 @@ export async function applyBackendUpdate(base: string, tag: string, signal?: Abo
     method: 'POST', timeoutMs: 60_000, signal, body: { target: 'backend', tag },
   })
 }
+
+/** GET /api/project-stats — the project summary used by the GitHub star prompt. */
+export async function fetchProjectStats(base: string, signal?: AbortSignal): Promise<{ githubStars: number }> {
+  try {
+    const data = await requestJson(base, '/api/project-stats', { timeoutMs: 6000, signal })
+    const row = typeof data === 'object' && data !== null ? data as Record<string, unknown> : {}
+    const n = Number(row.github_stars)
+    return { githubStars: Number.isFinite(n) ? n : 0 }
+  } catch {
+    return { githubStars: 0 }
+  }
+}

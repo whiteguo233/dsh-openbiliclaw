@@ -128,6 +128,42 @@
   transition: background 0.15s, transform 0.15s;
 }
 
+/* GitHub star prompt (popup .gh-star, restyled to the panel palette). */
+.starButton {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 9px;
+  border: 1px solid rgba(251, 114, 153, 0.28);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(255, 252, 254, 0.96), rgba(251, 114, 153, 0.1));
+  color: var(--obc-brand-strong);
+  cursor: pointer;
+  transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+
+.starButton:hover {
+  transform: translateY(-1px);
+  border-color: rgba(251, 114, 153, 0.55);
+  box-shadow: 0 6px 14px rgba(251, 114, 153, 0.18);
+}
+
+.starCount {
+  font-size: 10.5px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--obc-text-secondary);
+}
+
+.starLabel {
+  font-size: 10.5px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--obc-brand-strong);
+}
+
 .iconButton:hover {
   background: var(--obc-brand-soft);
   color: var(--obc-brand-strong);
@@ -3925,4 +3961,9 @@
   background: transparent;
   border: 0;
   box-shadow: none;
+}
+
+.panel[data-dark='true'] .starButton {
+  border-color: rgba(251, 114, 153, 0.32);
+  background: linear-gradient(180deg, rgba(44, 36, 44, 0.97), rgba(251, 114, 153, 0.12));
 }
