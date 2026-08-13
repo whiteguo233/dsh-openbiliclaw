@@ -662,9 +662,16 @@ export function RecommendView(props: { base: string; refreshKey: number }): Reac
   // reading earlier cards (and short pages chain-append until the viewport
   // plus the prefetch buffer are filled). A visible loading row renders at
   // the bottom while a page is in flight.
+  //
+  // The observer is created ONCE (the latest appendMore rides a ref), so it
+  // only fires on real intersection changes — recreating it per render made
+  // a failed append re-fire forever (loading row flicker). A failed auto
+  // append blocks further auto appends until the user acts again (manual
+  // 追加一批 / 换一批 / 刷新 clear the block).
   const sentinelRef = useRef<HTMLDivElement | null>(null)
+  const [appendBlocked, setAppendBlocked] = useState(false)
   const appendMore = useCallback(async () => {
-    if (items === null || busy !== '' || exhausted) return
+    if (items === null || busy !== '' || exhausted || appendBlocked) return
     setBusy('append-auto')
     try {
       const next = await appendRecommendations(base, { excludedBvids: [...excluded, ...items.map(item => item.item_key !== '' ? item.item_key : item.bvid).filter(Boolean)] })
@@ -676,10 +683,13 @@ export function RecommendView(props: { base: string; refreshKey: number }): Reac
       await fetchRuntimeStatus(base).then(setStatus).catch(() => undefined)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
+      setAppendBlocked(true)
     } finally {
       setBusy('')
     }
-  }, [base, busy, exhausted, items, excluded])
+  }, [base, busy, exhausted, appendBlocked, items, excluded])
+  const appendMoreRef = useRef<() => Promise<void>>(async () => undefined)
+  appendMoreRef.current = appendMore
   useEffect(() => {
     const el = sentinelRef.current
     if (el === null) return
@@ -688,12 +698,12 @@ export function RecommendView(props: { base: string; refreshKey: number }): Reac
     const root = el.parentElement
     const observer = new IntersectionObserver(entries => {
       for (const entry of entries) {
-        if (entry.isIntersecting) void appendMore()
+        if (entry.isIntersecting) void appendMoreRef.current()
       }
     }, { root, rootMargin: '800px 0px 800px 0px' })
     observer.observe(el)
     return () => { observer.disconnect() }
-  }, [appendMore])
+  }, [])
 
   return (
     <>
@@ -712,7 +722,7 @@ export function RecommendView(props: { base: string; refreshKey: number }): Reac
             </div>
           ) : null}
         </div>
-        <ActionButton label="换一批" disabled={busy !== ''} onClick={() => { setExhausted(false); void run('reshuffle', () => reshuffleRecommendations(base, { excludedBvids: excludeAll })) }} />
+        <ActionButton label="换一批" disabled={busy !== ''} onClick={() => { setExhausted(false); setAppendBlocked(false); void run('reshuffle', () => reshuffleRecommendations(base, { excludedBvids: excludeAll })) }} />
       </div>
       {error !== '' ? <ErrorNote text={error} /> : null}
       <DelightBanner key={`delight-${refreshKey}`} base={base} onError={setError} />
@@ -730,11 +740,11 @@ export function RecommendView(props: { base: string; refreshKey: number }): Reac
       ))}
       {items !== null && items.length > 0 ? (
         <div className={css.cardActions}>
-          <ActionButton label="追加一批" disabled={busy !== '' || exhausted} onClick={() => void run('append', () => appendRecommendations(base, { excludedBvids: excludeAll }).then(next => {
+          <ActionButton label="追加一批" disabled={busy !== '' || exhausted} onClick={() => { setAppendBlocked(false); void run('append', () => appendRecommendations(base, { excludedBvids: excludeAll }).then(next => {
             if (next.length === 0) setExhausted(true)
             return next
-          }))} />
-          <ActionButton label="刷新" disabled={busy !== ''} onClick={() => { setExhausted(false); void reload() }} />
+          })) }} />
+          <ActionButton label="刷新" disabled={busy !== ''} onClick={() => { setExhausted(false); setAppendBlocked(false); void reload() }} />
         </div>
       ) : null}
       {exhausted ? <div className={css.hint} style={{ textAlign: 'center' }}>这池先翻到头了，后台还在继续补货。</div> : null}
