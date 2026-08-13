@@ -1,6 +1,6 @@
 # 🦀 OpenBiliClaw · DSH 客户端插件
 
-**把 OpenBiliClaw 装进 DeepSeek Harness：DSH 界面里常驻的第四栏，一边用 DSH 干活，一边让 OpenBiliClaw 帮你刷内容摸鱼。**
+**OpenBiliClaw 是本地运行、跨平台、可调教的个性化内容推荐 Agent；本仓库是它的 DeepSeek Harness 客户端插件——DSH 界面常驻第四栏（推荐/内容库/对话/画像/设置），并注册 22 个 Agent Bridge 工具，让 Agent 读推荐、答探测、闭环学习。**
 
 [![License](https://img.shields.io/badge/License-BSD--3--Clause-blue.svg)](LICENSE)
 [![OpenBiliClaw](https://img.shields.io/badge/主项目-OpenBiliClaw-fb7299.svg)](https://github.com/whiteguo233/OpenBiliClaw)
