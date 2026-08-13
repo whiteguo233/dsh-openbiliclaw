@@ -68,12 +68,13 @@ export function registerBridgeTools(ctx: { tools: { register(def: unknown): () =
 
     register(defineTool({
       name: 'openbiliclaw_recommend',
-      description: 'Fetch a page of multi-source content recommendations (fast path; does not trigger a runtime refresh unless requested). Returns cards with item_key/content_id/source_platform plus bvid/up_name compatibility fields.',
+      description: 'Fetch a page of multi-source content recommendations. Serves precomputed pool copy (fast) by default; set realtime:true to generate fresh per-item LLM expressions at request time (slow). Does not trigger a runtime refresh unless refreshIfNeeded is set. Returns cards with item_key/content_id/source_platform plus bvid/up_name compatibility fields.',
       parameters: {
         limit: int('How many recommendations to return (default 5).', false),
         sourcePlatform: str('Optional canonical platform scope: bilibili, xiaohongshu, douyin, youtube, x (twitter), zhihu, weibo, reddit, linuxdo, v2ex. Empty = all platforms.', false),
         excludeItemId: str('Optional item_key (or bvid) to exclude from this page.', false),
         refreshIfNeeded: bool('When true, run a heavier freshness check before the recommendation fetch. Only use when the user explicitly wants it.', false),
+        realtime: bool('When true, generate fresh per-item LLM expressions at request time (slow). Default false = serve precomputed pool copy (fast).', false),
       },
       output: TEXT_OUTPUT,
       timeoutMs: bridge.config.timeoutMs,
@@ -84,6 +85,7 @@ export function registerBridgeTools(ctx: { tools: { register(def: unknown): () =
         if (typeof args.sourcePlatform === 'string' && args.sourcePlatform.trim() !== '') argv.push('--source-platform', args.sourcePlatform.trim())
         if (typeof args.excludeItemId === 'string' && args.excludeItemId.trim() !== '') argv.push('--exclude-item-id', args.excludeItemId.trim())
         if (args.refreshIfNeeded === true) argv.push('--refresh-if-needed')
+        if (args.realtime === true) argv.push('--realtime')
         return bridge.run('recommend', argv)
       },
     })),

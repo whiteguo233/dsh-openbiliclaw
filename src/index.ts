@@ -9,11 +9,10 @@
  * commands are absent here.
  *
  * Config (row config in cordis.patch.yml; all optional):
- *   pythonBin      python interpreter of the OpenBiliClaw env (default: <workdir>/.venv/bin/python)
+ *   apiUrl         OpenBiliClaw serve-api base URL (default: http://127.0.0.1:8420)
  *   workdir        OpenBiliClaw checkout dir (config.toml + data live here; default: /Users/white/workspace/OpenBiliClaw)
  *   skillPath      adapter SKILL.md path (default: <workdir>/skills/openbiliclaw-adapter/SKILL.md)
  *   timeoutMs      per-command budget in ms (default 300000)
- *   stdoutMaxBytes captured stdout cap (default 2 MB)
  * @module @openbiliclaw/dsh-plugin
  */
 import { readFileSync } from 'node:fs'
@@ -27,15 +26,14 @@ export const name = 'openbiliclaw'
 
 /** Required services: the tool registry, the skill registry, and the shell
  *  executor (the renamed `bash` seam in newer DSH snapshots). */
-export const inject = ['tools', 'skills', 'shell']
+export const inject = ['tools', 'skills']
 
 /** Raw row config (no schema — every field defaults in code). */
 export interface OpenBiliClawRowConfig {
-  pythonBin?: string
+  apiUrl?: string
   workdir?: string
   skillPath?: string
   timeoutMs?: number
-  stdoutMaxBytes?: number
 }
 
 const DEFAULT_WORKDIR = '/Users/white/workspace/OpenBiliClaw'
@@ -46,15 +44,14 @@ function resolveConfig(config: OpenBiliClawRowConfig | undefined): BridgeConfig 
     ? config.workdir
     : DEFAULT_WORKDIR
   return {
-    pythonBin: config?.pythonBin?.trim() !== '' && config?.pythonBin !== undefined
-      ? config.pythonBin
-      : `${workdir}/.venv/bin/python`,
+    apiUrl: config?.apiUrl?.trim() !== '' && config?.apiUrl !== undefined
+      ? config.apiUrl
+      : 'http://127.0.0.1:8420',
     workdir,
     skillPath: config?.skillPath?.trim() !== '' && config?.skillPath !== undefined
       ? config.skillPath
       : `${workdir}/skills/openbiliclaw-adapter/SKILL.md`,
     timeoutMs: typeof config?.timeoutMs === 'number' && config.timeoutMs > 0 ? config.timeoutMs : 300_000,
-    stdoutMaxBytes: typeof config?.stdoutMaxBytes === 'number' && config.stdoutMaxBytes > 0 ? config.stdoutMaxBytes : 2_000_000,
   }
 }
 
@@ -65,7 +62,7 @@ function resolveConfig(config: OpenBiliClawRowConfig | undefined): BridgeConfig 
  */
 export function apply(ctx: Context, config?: OpenBiliClawRowConfig): void {
   const resolved = resolveConfig(config)
-  const bridge = createBridge(ctx.shell, resolved)
+  const bridge = createBridge(resolved)
   const logger = ctx.logger('openbiliclaw')
   ctx.effect(() => registerBridgeTools(ctx, bridge), 'openbiliclaw: bridge tools')
 

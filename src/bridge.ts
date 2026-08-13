@@ -1,29 +1,28 @@
 /**
- * Agent-bridge CLI invocation through the harness bash service. Every tool
- * shells out to `python -m openbiliclaw.integrations.openclaw.cli` (the
- * host-neutral agent-bridge/v2 JSON contract OpenClaw/Hermes/WorkBuddy share),
- * parses the JSON line, and turns `{"ok": false, ...}` payloads into thrown
- * errors — the skill's working rules: parse JSON, surface errors, stop.
+ * Agent-bridge invocation over HTTP. Every tool POSTs to the running
+ * serve-api's `/api/agent-bridge` endpoint (the host-neutral agent-bridge/v2
+ * JSON contract OpenClaw/Hermes/WorkBuddy share), which dispatches against a
+ * warm in-process OpenClawAdapter — avoiding the per-call Python import cold
+ * start of shelling out to the CLI. Parses the JSON reply, and turns
+ * `{"ok": false, ...}` payloads into thrown errors — the skill's working
+ * rules: parse JSON, surface errors, stop.
  * @module @openbiliclaw/dsh-plugin
  */
-import type { ShellExecRequest, ShellExecSpec, ShellRunResult } from '@deepseek-ai/dsh-shell'
 import type { JsonValue } from '@deepseek-ai/dsh-session'
 
 /** Resolved plugin config (defaults applied in the plugin entry). */
 export interface BridgeConfig {
-  /** Python interpreter of the OpenBiliClaw environment. */
-  pythonBin: string
+  /** Base URL of the running OpenBiliClaw serve-api (default http://127.0.0.1:8420). */
+  apiUrl: string
   /** OpenBiliClaw checkout directory (config.toml + data/ live here). */
   workdir: string
   /** Absolute path of the adapter SKILL.md, or '' to skip registration. */
   skillPath: string
   /** Per-command budget in ms. */
   timeoutMs: number
-  /** Max stdout bytes captured per command. */
-  stdoutMaxBytes: number
 }
 
-/** The bridge service face the tools need (narrowed bash + config). */
+/** The bridge service face the tools need (config + HTTP transport). */
 export interface Bridge {
   readonly config: BridgeConfig
   /** Run one bridge command with CLI-style argv; returns the parsed `data` payload as lossless JSON. */
@@ -44,15 +43,15 @@ export interface BridgeError {
   [key: string]: unknown
 }
 
-/** Parse the bridge CLI's single JSON line from captured stdout. */
-export function parseBridgeLine(stdout: string): BridgeOk | BridgeError {
-  const trimmed = stdout.trim()
-  if (trimmed === '') throw new Error('openbiliclaw bridge: empty output')
+/** Parse the bridge's single JSON reply object. */
+export function parseBridgeLine(text: string): BridgeOk | BridgeError {
+  const trimmed = text.trim()
+  if (trimmed === '') throw new Error('openbiliclaw bridge: empty reply')
   let parsed: unknown
   try {
     parsed = JSON.parse(trimmed)
   } catch {
-    throw new Error(`openbiliclaw bridge: non-JSON output: ${trimmed.slice(0, 400)}`)
+    throw new Error(`openbiliclaw bridge: non-JSON reply: ${trimmed.slice(0, 400)}`)
   }
   if (typeof parsed !== 'object' || parsed === null) {
     throw new Error(`openbiliclaw bridge: unexpected payload shape: ${trimmed.slice(0, 400)}`)
@@ -66,54 +65,35 @@ export function parseBridgeLine(stdout: string): BridgeOk | BridgeError {
 }
 
 /**
- * Build the bridge face over the harness shell service (the renamed `bash`
- * seam in newer DSH snapshots; both expose the same resolve/run surface).
- * Commands run with the checkout as workdir so `config.toml` / `data/`
- * resolve exactly like the running backend's; the default pythonBin is that
- * checkout's `.venv`.
- * @param shell - the harness shell service (ctx.shell).
+ * Build the bridge face over HTTP to the serve-api's `/api/agent-bridge`
+ * endpoint.  The serve-api keeps a warm in-process OpenClawAdapter, so these
+ * calls are fast (no Python subprocess per tool call).
  * @param config - resolved plugin config.
  * @returns the bridge face.
  */
-export function createBridge(shell: {
-  resolve(request: ShellExecRequest): ShellExecSpec
-  run(spec: ShellExecSpec): Promise<ShellRunResult>
-}, config: BridgeConfig): Bridge {
+export function createBridge(config: BridgeConfig): Bridge {
+  const endpoint = `${config.apiUrl.replace(/\/+$/, '')}/api/agent-bridge`
   return {
     config,
     async run(command: string, args: readonly string[]): Promise<JsonValue> {
-      const argv = [config.pythonBin, '-m', 'openbiliclaw.integrations.openclaw.cli', command, ...args]
-      const spec = shell.resolve({
-        command: argv.map(shellQuote).join(' '),
-        workdir: config.workdir,
-        timeoutMs: config.timeoutMs,
-        stdoutMaxBytes: config.stdoutMaxBytes,
-        // The bridge opens the checkout's SQLite DB read-write and writes
-        // data/ state; confine writes to the OpenBiliClaw checkout instead of
-        // the caller's session workspace (the deployment default).
-        sandboxPolicy: {
-          mode: 'workspace-write',
-          workspaceRoot: config.workdir,
-        },
-      })
-      const result = await shell.run(spec)
-      const stdout = result.stdout.text
-      if (result.exitCode !== 0) {
-        // The interesting exception is the TAIL of a python traceback, not the head.
-        const stderr = result.stderr.text.trim()
-        const tail = stderr.length > 1500 ? stderr.slice(stderr.length - 1500) : stderr
-        throw new Error(
-          `openbiliclaw bridge exited ${String(result.exitCode)}: ${tail || stdout.slice(-1500)}`,
-        )
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), config.timeoutMs)
+      try {
+        const resp = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ command, argv: args }),
+          signal: controller.signal,
+        })
+        const text = await resp.text()
+        if (!resp.ok) {
+          throw new Error(`openbiliclaw bridge HTTP ${resp.status}: ${text.slice(-1500)}`)
+        }
+        const reply = parseBridgeLine(text)
+        return reply.data as JsonValue
+      } finally {
+        clearTimeout(timer)
       }
-      const reply = parseBridgeLine(stdout)
-      return reply.data as JsonValue
     },
   }
-}
-
-/** Single-quote a shell argument (argv is built for one bash command line). */
-function shellQuote(value: string): string {
-  if (/^[A-Za-z0-9_./:=,@%+^~-]+$/.test(value)) return value
-  return `'${value.replace(/'/g, `'\\''`)}'`
 }

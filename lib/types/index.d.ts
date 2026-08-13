@@ -6,11 +6,10 @@ export declare const name = "openbiliclaw";
 export declare const inject: string[];
 /** Raw row config (no schema — every field defaults in code). */
 export interface OpenBiliClawRowConfig {
-    pythonBin?: string;
+    apiUrl?: string;
     workdir?: string;
     skillPath?: string;
     timeoutMs?: number;
-    stdoutMaxBytes?: number;
 }
 /**
  * Plugin body: wire the bridge tools and the adapter skill.

@@ -1,27 +1,26 @@
 /**
- * Agent-bridge CLI invocation through the harness bash service. Every tool
- * shells out to `python -m openbiliclaw.integrations.openclaw.cli` (the
- * host-neutral agent-bridge/v2 JSON contract OpenClaw/Hermes/WorkBuddy share),
- * parses the JSON line, and turns `{"ok": false, ...}` payloads into thrown
- * errors — the skill's working rules: parse JSON, surface errors, stop.
+ * Agent-bridge invocation over HTTP. Every tool POSTs to the running
+ * serve-api's `/api/agent-bridge` endpoint (the host-neutral agent-bridge/v2
+ * JSON contract OpenClaw/Hermes/WorkBuddy share), which dispatches against a
+ * warm in-process OpenClawAdapter — avoiding the per-call Python import cold
+ * start of shelling out to the CLI. Parses the JSON reply, and turns
+ * `{"ok": false, ...}` payloads into thrown errors — the skill's working
+ * rules: parse JSON, surface errors, stop.
  * @module @openbiliclaw/dsh-plugin
  */
-import type { ShellExecRequest, ShellExecSpec, ShellRunResult } from '@deepseek-ai/dsh-shell';
 import type { JsonValue } from '@deepseek-ai/dsh-session';
 /** Resolved plugin config (defaults applied in the plugin entry). */
 export interface BridgeConfig {
-    /** Python interpreter of the OpenBiliClaw environment. */
-    pythonBin: string;
+    /** Base URL of the running OpenBiliClaw serve-api (default http://127.0.0.1:8420). */
+    apiUrl: string;
     /** OpenBiliClaw checkout directory (config.toml + data/ live here). */
     workdir: string;
     /** Absolute path of the adapter SKILL.md, or '' to skip registration. */
     skillPath: string;
     /** Per-command budget in ms. */
     timeoutMs: number;
-    /** Max stdout bytes captured per command. */
-    stdoutMaxBytes: number;
 }
-/** The bridge service face the tools need (narrowed bash + config). */
+/** The bridge service face the tools need (config + HTTP transport). */
 export interface Bridge {
     readonly config: BridgeConfig;
     /** Run one bridge command with CLI-style argv; returns the parsed `data` payload as lossless JSON. */
@@ -39,20 +38,14 @@ export interface BridgeError {
     message?: string;
     [key: string]: unknown;
 }
-/** Parse the bridge CLI's single JSON line from captured stdout. */
-export declare function parseBridgeLine(stdout: string): BridgeOk | BridgeError;
+/** Parse the bridge's single JSON reply object. */
+export declare function parseBridgeLine(text: string): BridgeOk | BridgeError;
 /**
- * Build the bridge face over the harness shell service (the renamed `bash`
- * seam in newer DSH snapshots; both expose the same resolve/run surface).
- * Commands run with the checkout as workdir so `config.toml` / `data/`
- * resolve exactly like the running backend's; the default pythonBin is that
- * checkout's `.venv`.
- * @param shell - the harness shell service (ctx.shell).
+ * Build the bridge face over HTTP to the serve-api's `/api/agent-bridge`
+ * endpoint.  The serve-api keeps a warm in-process OpenClawAdapter, so these
+ * calls are fast (no Python subprocess per tool call).
  * @param config - resolved plugin config.
  * @returns the bridge face.
  */
-export declare function createBridge(shell: {
-    resolve(request: ShellExecRequest): ShellExecSpec;
-    run(spec: ShellExecSpec): Promise<ShellRunResult>;
-}, config: BridgeConfig): Bridge;
+export declare function createBridge(config: BridgeConfig): Bridge;
 //# sourceMappingURL=bridge.d.ts.map
