@@ -6,8 +6,11 @@
  * @module @openbiliclaw/dsh-plugin
  */
 import { useCallback, useEffect, useState } from 'react'
-import { fetchProfileSummary, respondAvoidanceProbe, respondInterestProbe, type ProfileSummary } from './api.ts'
-import { ActionButton, EmptyState, ErrorNote } from './views.tsx'
+import {
+  fetchProfileSummary, respondAvoidanceProbe, respondInterestProbe,
+  type CognitionUpdate, type ProfileSummary,
+} from './api.ts'
+import { ActionButton, EmptyState, ErrorNote, formatTime } from './views.tsx'
 import css from './panel.module.css'
 
 /** Split the portrait prose into breathing paragraphs (~2 sentences each). */
@@ -162,22 +165,81 @@ function ProbeCard(props: {
   )
 }
 
+/** One recent cognition update card (popup .cognition-card). */
+function CognitionCard(props: { item: CognitionUpdate }): React.JSX.Element {
+  const { item } = props
+  const [open, setOpen] = useState(false)
+  const expandable = item.reasoning !== '' || item.evidence !== '' || item.impact !== ''
+  return (
+    <div className={css.cognitionCard} data-expanded={open || undefined}>
+      <button
+        type="button"
+        className={css.cognitionToggle}
+        disabled={!expandable}
+        onClick={() => setOpen(v => !v)}
+      >
+        <span className={css.cognitionSummary}>{item.summary !== '' ? item.summary : '阿B 更新了一条认知'}</span>
+        {item.context_line !== '' ? <span className={css.cognitionContext}>{item.context_line}</span> : null}
+        <span className={css.cognitionMeta}>
+          {item.source_label !== '' ? <span className={css.cognitionSource}>{item.source_label}</span> : null}
+          {item.created_at !== '' ? <span className={css.cognitionTime}>{formatTime(item.created_at)}</span> : null}
+        </span>
+      </button>
+      {expandable && open ? (
+        <div className={css.cognitionDetails}>
+          {item.impact !== '' ? <div className={css.cognitionDetail}><span className={css.cognitionDetailLabel}>影响</span>{item.impact}</div> : null}
+          {item.reasoning !== '' ? <div className={css.cognitionDetail}><span className={css.cognitionDetailLabel}>推理</span>{item.reasoning}</div> : null}
+          {item.evidence !== '' ? <div className={css.cognitionDetail}><span className={css.cognitionDetailLabel}>依据</span>{item.evidence}</div> : null}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 /** 画像 tab. */
 export function ProfileView(props: { base: string }): React.JSX.Element {
   const { base } = props
   const [profile, setProfile] = useState<ProfileSummary | null | undefined>(undefined)
+  const [cognition, setCognition] = useState<{ items: CognitionUpdate[]; hasMore: boolean; nextCursor: string }>({ items: [], hasMore: false, nextCursor: '' })
+  const [cognitionLoading, setCognitionLoading] = useState(false)
   const [error, setError] = useState('')
 
   const reload = useCallback(async () => {
     setError('')
     try {
-      setProfile(await fetchProfileSummary(base))
+      const next = await fetchProfileSummary(base)
+      setProfile(next)
+      if (next !== null) {
+        setCognition({
+          items: next.recent_cognition_updates,
+          hasMore: next.has_more_cognition_updates,
+          nextCursor: next.next_cognition_cursor,
+        })
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     }
   }, [base])
 
   useEffect(() => { void reload() }, [reload])
+
+  const loadMoreCognition = useCallback(async () => {
+    if (!cognition.hasMore || cognitionLoading) return
+    setCognitionLoading(true)
+    try {
+      const next = await fetchProfileSummary(base, { limit: 5, cursor: cognition.nextCursor })
+      if (next === null) return
+      setCognition(prev => ({
+        items: [...prev.items, ...next.recent_cognition_updates],
+        hasMore: next.has_more_cognition_updates,
+        nextCursor: next.next_cognition_cursor,
+      }))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setCognitionLoading(false)
+    }
+  }, [base, cognition.hasMore, cognition.nextCursor, cognitionLoading])
 
   if (profile === undefined) return <EmptyState text="加载中…" />
   if (profile === null) return <EmptyState text="画像尚未生成（需要先完成初始化）。" />
@@ -278,6 +340,19 @@ export function ProfileView(props: { base: string }): React.JSX.Element {
             {activeAvoidances.map(probe => (
               <ProbeCard key={probe.domain} base={base} kind="avoidance" domain={probe.domain} reason={probe.reason} confidence={probe.confidence} onAnswered={() => void reload()} onError={setError} />
             ))}
+          </>
+        ) : null}
+        {cognition.items.length > 0 ? (
+          <>
+            <Layer label="阿B 最近新记住了什么" />
+            {cognition.items.map(item => (
+              <CognitionCard key={`${item.created_at}:${item.summary}`} item={item} />
+            ))}
+            {cognition.hasMore ? (
+              <div className={css.cardActions}>
+                <ActionButton label="加载更早的认知" disabled={cognitionLoading} onClick={() => void loadMoreCognition()} />
+              </div>
+            ) : null}
           </>
         ) : null}
         {profile.active_insights.length > 0 ? (

@@ -183,6 +183,19 @@ export interface PendingConfirmation {
 }
 
 /** Full profile summary (canonical surface fields). */
+/** One recent cognition update (profile tab, popup parity). */
+export interface CognitionUpdate {
+  summary: string
+  context_line: string
+  impact: string
+  reasoning: string
+  evidence: string
+  source: string
+  source_label: string
+  expand_hint: string
+  created_at: string
+}
+
 export interface ProfileSummary {
   initialized: boolean
   personality_portrait: string
@@ -202,8 +215,12 @@ export interface ProfileSummary {
   context: { weekday_patterns: string; weekend_patterns: string; time_of_day_patterns: string; session_type: string }
   speculative_interests: Array<{ domain: string; reason: string; confidence: number; status: string; specifics: unknown[]; confirmation_count: number; confirmation_threshold: number; probe_mode?: string; challenge?: boolean }>
   speculative_avoidances: Array<{ domain: string; reason: string; confidence: number; status: string; specifics: unknown[]; confirmation_count: number; confirmation_threshold: number }>
+  recent_cognition_updates: CognitionUpdate[]
+  has_more_cognition_updates: boolean
+  next_cognition_cursor: string
   active_insights: Array<{ hypothesis: string; evidence: string[]; confidence: number; validated: boolean; created_at?: string }>
   recent_awareness: Array<{ date: string; observation: string; trend: string; emotion_guess: string }>
+  overrides: Record<string, unknown>
 }
 
 /** One activity feed item. */
@@ -502,6 +519,45 @@ export async function submitFeedback(
   signal?: AbortSignal,
 ): Promise<void> {
   await requestJson(base, '/api/feedback', { method: 'POST', body: { ...payload }, timeoutMs: 10_000, signal })
+}
+
+/** One raw behavior event (service-worker batch item). */
+export interface BehaviorEvent {
+  type: string
+  url?: string
+  title?: string
+  timestamp: number
+  source_platform?: string
+  context?: Record<string, unknown>
+  metadata?: Record<string, unknown>
+  event_id: string
+  watch_seconds?: number
+  video_duration_seconds?: number
+}
+
+/** POST /api/events — ingest behavior events (e.g. saved-card feedback). */
+export async function sendBehaviorEvents(
+  base: string,
+  events: BehaviorEvent[],
+  signal?: AbortSignal,
+): Promise<{ accepted: number; rejected: Array<{ index: number; type: string; reason: string }> }> {
+  const data = await requestJson(base, '/api/events', {
+    method: 'POST',
+    body: { events },
+    timeoutMs: 15_000,
+    signal,
+  })
+  const row = typeof data === 'object' && data !== null ? data as Record<string, unknown> : {}
+  return {
+    accepted: num(row.accepted),
+    rejected: Array.isArray(row.rejected)
+      ? (row.rejected as Array<Record<string, unknown>>).map(r => ({
+        index: num(r.index),
+        type: str(r.type),
+        reason: str(r.reason),
+      }))
+      : [],
+  }
 }
 
 /** GET /api/delight/pending-batch — the full un-notified delight queue. */
@@ -816,9 +872,15 @@ export async function fetchHealth(base: string, signal?: AbortSignal): Promise<b
 }
 
 /** GET /api/profile-summary — the AI profile summary (canonical surface shape). */
-export async function fetchProfileSummary(base: string, signal?: AbortSignal): Promise<ProfileSummary | null> {
+export async function fetchProfileSummary(
+  base: string,
+  opts: { limit?: number; cursor?: string; signal?: AbortSignal } = {},
+): Promise<ProfileSummary | null> {
   try {
-    const data = await requestJson(base, '/api/profile-summary?limit=5', { timeoutMs: 10_000, signal })
+    const params = new URLSearchParams()
+    params.set('limit', String(opts.limit ?? 5))
+    if (opts.cursor !== undefined && opts.cursor !== '') params.set('cursor', opts.cursor)
+    const data = await requestJson(base, `/api/profile-summary?${params.toString()}`, { timeoutMs: 10_000, signal: opts.signal })
     if (typeof data !== 'object' || data === null) return null
     const row = data as Record<string, unknown>
     const mbti = typeof row.mbti === 'object' && row.mbti !== null ? row.mbti as Record<string, unknown> : {}
@@ -890,6 +952,22 @@ export async function fetchProfileSummary(base: string, signal?: AbortSignal): P
       })(),
       speculative_interests: Array.isArray(row.speculative_interests) ? row.speculative_interests.map(toProbe).filter((p): p is NonNullable<typeof p> => p !== null) : [],
       speculative_avoidances: Array.isArray(row.speculative_avoidances) ? row.speculative_avoidances.map(toProbe).filter((p): p is NonNullable<typeof p> => p !== null) : [],
+      recent_cognition_updates: Array.isArray(row.recent_cognition_updates)
+        ? (row.recent_cognition_updates as Array<Record<string, unknown>>).map(c => ({
+          summary: str(c.summary),
+          context_line: str(c.context_line),
+          impact: str(c.impact),
+          reasoning: str(c.reasoning),
+          evidence: str(c.evidence),
+          source: str(c.source),
+          source_label: str(c.source_label),
+          expand_hint: str(c.expand_hint),
+          created_at: str(c.created_at),
+        }))
+        : [],
+      has_more_cognition_updates: row.has_more_cognition_updates === true,
+      next_cognition_cursor: str(row.next_cognition_cursor),
+      overrides: typeof row.overrides === 'object' && row.overrides !== null ? row.overrides as Record<string, unknown> : {},
       active_insights: Array.isArray(row.active_insights)
         ? (row.active_insights as Array<Record<string, unknown>>).map(i => ({
           hypothesis: str(i.hypothesis),
