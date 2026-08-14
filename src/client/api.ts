@@ -203,13 +203,45 @@ export interface RuntimeStatus {
   [key: string]: unknown
 }
 
+/**
+ * Build a concise human-readable summary from a backend error `detail` so the
+ * failure toast shows WHICH field failed validation, not just `failed: 422`.
+ * FastAPI wraps validation errors as `{ detail: [{ loc, msg, ... }] }` (or a
+ * plain string), so unwrap that envelope and render each entry as `loc.path: msg`.
+ */
+function summarizeDetail(detail: unknown): string {
+  let value = detail
+  if (typeof value === 'object' && value !== null && 'detail' in (value as Record<string, unknown>)) {
+    value = (value as Record<string, unknown>).detail
+  }
+  if (typeof value === 'string') {
+    return value.trim() === '' ? '' : value.trim()
+  }
+  if (Array.isArray(value)) {
+    const parts: string[] = []
+    for (const entry of value) {
+      if (typeof entry !== 'object' || entry === null) continue
+      const rec = entry as { loc?: unknown; msg?: unknown }
+      const msg = typeof rec.msg === 'string' ? rec.msg : ''
+      if (msg === '') continue
+      const loc = Array.isArray(rec.loc)
+        ? rec.loc.filter((seg): seg is string => typeof seg === 'string').join('.')
+        : ''
+      parts.push(loc === '' ? msg : `${loc}: ${msg}`)
+    }
+    return parts.join('; ')
+  }
+  return ''
+}
+
 /** Request error carrying the HTTP status and server detail. */
 export class ApiError extends Error {
   readonly status: number
   readonly detail: unknown
 
   constructor(path: string, status: number, detail: unknown) {
-    super(`${path} failed: ${status}`)
+    const summary = summarizeDetail(detail)
+    super(`${path} failed: ${status}${summary === '' ? '' : ` — ${summary}`}`)
     this.status = status
     this.detail = detail
   }
