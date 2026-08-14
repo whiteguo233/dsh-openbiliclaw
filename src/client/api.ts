@@ -105,6 +105,34 @@ export interface SavedItem {
   note: string
   added_at: string
   sync_status: string
+  sync_task_id: string
+  requested_action: string
+  resolved_action: string
+  resolved_target: string
+  error_code: string
+  error_message: string
+}
+
+/** One per-item native-sync result inside a saved-sync task. */
+export interface SavedSyncItem {
+  item_key: string
+  status: string
+  resolved_action: string
+  resolved_target: string
+  error_code: string
+  error_message: string
+}
+
+/** Durable native-sync batch returned at creation and polling. */
+export interface SavedSyncBatch {
+  task_id: string
+  items: SavedSyncItem[]
+}
+
+/** One page of saved memberships with the backend total count. */
+export interface SavedListPage {
+  items: SavedItem[]
+  total: number
 }
 
 /** One chat turn. */
@@ -403,6 +431,24 @@ function toSaved(row: Record<string, unknown>): SavedItem {
     note: str(row.note),
     added_at: str(row.added_at),
     sync_status: str(row.sync_status),
+    sync_task_id: str(row.sync_task_id),
+    requested_action: str(row.requested_action),
+    resolved_action: str(row.resolved_action),
+    resolved_target: str(row.resolved_target),
+    error_code: str(row.error_code),
+    error_message: str(row.error_message),
+  }
+}
+
+/** Defensive coercion of one saved-sync result row. */
+function toSyncItem(row: Record<string, unknown>): SavedSyncItem {
+  return {
+    item_key: str(row.item_key),
+    status: str(row.status),
+    resolved_action: str(row.resolved_action),
+    resolved_target: str(row.resolved_target),
+    error_code: str(row.error_code),
+    error_message: str(row.error_message),
   }
 }
 
@@ -669,10 +715,42 @@ export async function fetchSavedStatus(base: string, listKind: 'favorite' | 'wat
   return row.saved === true
 }
 
-/** GET /api/saved/{listKind} — favorite or watch_later memberships. */
-export async function fetchSaved(base: string, listKind: 'favorite' | 'watch_later', signal?: AbortSignal): Promise<SavedItem[]> {
+/** GET /api/saved/{listKind} — favorite or watch_later memberships plus total. */
+export async function fetchSaved(base: string, listKind: 'favorite' | 'watch_later', signal?: AbortSignal): Promise<SavedListPage> {
   const data = await requestJson(base, `/api/saved/${listKind}`, { timeoutMs: 10_000, signal })
-  return asItems(data).map(toSaved)
+  const row = typeof data === 'object' && data !== null ? data as Record<string, unknown> : {}
+  return { items: asItems(data).map(toSaved), total: num(row.total) }
+}
+
+/** POST /api/saved/{listKind}/sync — explicit full/batch native sync.
+ *  An empty item_keys array means all eligible rows for this list. */
+export async function syncSavedItems(
+  base: string,
+  listKind: 'favorite' | 'watch_later',
+  itemKeys: string[] = [],
+  signal?: AbortSignal,
+): Promise<SavedSyncBatch> {
+  const data = await requestJson(base, `/api/saved/${listKind}/sync`, {
+    method: 'POST',
+    body: { item_keys: itemKeys.map(key => key.trim()).filter(key => key !== '') },
+    timeoutMs: 20_000,
+    signal,
+  })
+  return toSyncBatch(data)
+}
+
+/** GET /api/saved-sync/tasks/{task_id} — poll one durable native-sync batch. */
+export async function pollSavedSyncTask(base: string, taskId: string, signal?: AbortSignal): Promise<SavedSyncBatch> {
+  const data = await requestJson(base, `/api/saved-sync/tasks/${encodeURIComponent(taskId.trim())}`, { timeoutMs: 15_000, signal })
+  return toSyncBatch(data)
+}
+
+function toSyncBatch(data: unknown): SavedSyncBatch {
+  const row = typeof data === 'object' && data !== null ? data as Record<string, unknown> : {}
+  return {
+    task_id: str(row.task_id),
+    items: (Array.isArray(row.items) ? row.items as Array<Record<string, unknown>> : []).map(toSyncItem),
+  }
 }
 
 /** POST /api/saved/{listKind} — add one membership. */

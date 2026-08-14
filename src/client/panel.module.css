@@ -824,6 +824,113 @@
   box-shadow: var(--obc-shadow-sm);
 }
 
+/* ── saved sync toolbar and per-item results ─────────────────────────── */
+
+.syncToolbar {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  margin-bottom: 10px;
+}
+
+.syncMessage {
+  font-size: 10.5px;
+  color: var(--obc-text-muted);
+  min-height: 13px;
+  line-height: 1.45;
+}
+
+.syncMessage[data-tone='error'] {
+  color: var(--obc-danger);
+}
+
+.syncResults {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 10px;
+  max-height: 140px;
+  overflow-y: auto;
+  border: 1px solid var(--obc-line);
+  border-radius: 12px;
+  padding: 7px 8px;
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.syncLine {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 10.5px;
+  color: var(--obc-text-secondary);
+  line-height: 1.45;
+}
+
+.syncLineText {
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+  color: var(--obc-text);
+}
+
+.syncLineDetail {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--obc-text-muted);
+}
+
+.syncBadgeRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.syncInlineDetail {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  color: var(--obc-text-muted);
+}
+
+.syncChip {
+  flex: 0 0 auto;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(240, 246, 255, 0.9);
+  color: var(--obc-text-secondary);
+  font-size: 9.5px;
+  line-height: 15px;
+  font-weight: 700;
+}
+
+.syncChip[data-tone='success'] {
+  color: var(--obc-success);
+  background: rgba(48, 185, 128, 0.12);
+}
+
+.syncChip[data-tone='warning'] {
+  color: #8a6520;
+  background: rgba(255, 193, 7, 0.14);
+}
+
+.syncChip[data-tone='error'] {
+  color: var(--obc-danger);
+  background: rgba(239, 122, 134, 0.12);
+}
+
+.syncChip[data-tone='info'] {
+  color: var(--obc-brand-strong);
+  background: var(--obc-brand-soft);
+}
+
 /* ── dialogue ────────────────────────────────────────────────────────── */
 
 .turn {

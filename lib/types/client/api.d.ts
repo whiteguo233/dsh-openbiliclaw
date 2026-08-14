@@ -83,6 +83,31 @@ export interface SavedItem {
     note: string;
     added_at: string;
     sync_status: string;
+    sync_task_id: string;
+    requested_action: string;
+    resolved_action: string;
+    resolved_target: string;
+    error_code: string;
+    error_message: string;
+}
+/** One per-item native-sync result inside a saved-sync task. */
+export interface SavedSyncItem {
+    item_key: string;
+    status: string;
+    resolved_action: string;
+    resolved_target: string;
+    error_code: string;
+    error_message: string;
+}
+/** Durable native-sync batch returned at creation and polling. */
+export interface SavedSyncBatch {
+    task_id: string;
+    items: SavedSyncItem[];
+}
+/** One page of saved memberships with the backend total count. */
+export interface SavedListPage {
+    items: SavedItem[];
+    total: number;
 }
 /** One chat turn. */
 export interface ChatTurn {
@@ -345,8 +370,13 @@ export declare function fetchContentHistory(base: string, category: 'clicked' | 
 }>;
 /** GET /api/saved/{listKind}/status — saved state for one item (toggle display). */
 export declare function fetchSavedStatus(base: string, listKind: 'favorite' | 'watch_later', itemKey: string, signal?: AbortSignal): Promise<boolean>;
-/** GET /api/saved/{listKind} — favorite or watch_later memberships. */
-export declare function fetchSaved(base: string, listKind: 'favorite' | 'watch_later', signal?: AbortSignal): Promise<SavedItem[]>;
+/** GET /api/saved/{listKind} — favorite or watch_later memberships plus total. */
+export declare function fetchSaved(base: string, listKind: 'favorite' | 'watch_later', signal?: AbortSignal): Promise<SavedListPage>;
+/** POST /api/saved/{listKind}/sync — explicit full/batch native sync.
+ *  An empty item_keys array means all eligible rows for this list. */
+export declare function syncSavedItems(base: string, listKind: 'favorite' | 'watch_later', itemKeys?: string[], signal?: AbortSignal): Promise<SavedSyncBatch>;
+/** GET /api/saved-sync/tasks/{task_id} — poll one durable native-sync batch. */
+export declare function pollSavedSyncTask(base: string, taskId: string, signal?: AbortSignal): Promise<SavedSyncBatch>;
 /** POST /api/saved/{listKind} — add one membership. */
 export declare function saveItem(base: string, listKind: 'favorite' | 'watch_later', payload: {
     source_platform: string;
