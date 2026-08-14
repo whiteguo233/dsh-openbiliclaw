@@ -20,19 +20,17 @@ import { MessageIcon, ChatIcon, CollapseIcon, GearIcon, GithubStarIcon, LibraryI
 import { SettingsOverlay } from './settings.tsx'
 import css from './panel.module.css'
 
-/** Business face injected by the overlay drawer registration. */
+/** Business face passed to the panel by the DOM mount. */
 export interface OpenBiliClawInjected {
-  /** Close the drawer (shared store transition, driven by the panel's collapse button). */
-  closeDrawer: () => void
+  /** Close the panel column (driven by the panel's collapse button). */
+  closePanel: () => void
   /** Whether the shell theme is currently dark. */
   isDark: () => boolean
   /** Subscribe to shell theme changes. Returns the unsubscriber. */
   onThemeChange: (listener: (dark: boolean) => void) => () => void
 }
 
-/** Panel props: the business face injected by the overlay drawer registration.
- *  (The registration inject face is the only share this panel consumes; the
- *  drawer owner handles its own geometry and close semantics.) */
+/** Panel props: the business face passed by the DOM mount (close + theme). */
 export type OpenBiliClawPanelProps = OpenBiliClawInjected
 
 type TabKey = 'recommend' | 'library' | 'chat' | 'profile'
@@ -59,10 +57,10 @@ const TABS: Array<{ key: TabKey; label: string; icon: (props: { size?: number })
 ]
 
 /**
- * The drawer body: OpenBiliClaw user-consumption panel.
+ * The panel column body: OpenBiliClaw user-consumption panel.
  * @param props - injected actions (close + theme).
  */
-export function OpenBiliClawPanel({ closeDrawer, isDark, onThemeChange }: OpenBiliClawPanelProps): React.JSX.Element {
+export function OpenBiliClawPanel({ closePanel, isDark, onThemeChange }: OpenBiliClawPanelProps): React.JSX.Element {
   const [dark, setDark] = useState(() => isDark())
   useEffect(() => onThemeChange(setDark), [onThemeChange])
   const [base, setBase] = useState(() => readApiBase())
@@ -262,7 +260,7 @@ export function OpenBiliClawPanel({ closeDrawer, isDark, onThemeChange }: OpenBi
         <button type="button" className={css.iconButton} title="设置" onClick={() => setSettingsOpen(open => !open)}>
           <GearIcon size={14} />
         </button>
-        <button type="button" className={css.iconButton} title="收起" onClick={closeDrawer}>
+        <button type="button" className={css.iconButton} title="收起" onClick={closePanel}>
           <CollapseIcon size={14} />
         </button>
       </div>

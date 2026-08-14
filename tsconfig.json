@@ -46,7 +46,8 @@
       "@deepseek-ai/dsh-client-ui-theme/client": ["/Users/white/.dsh/source/current/packages/client/ui-theme/lib/types/client/index.d.ts"],
       "@deepseek-ai/dsh-client-ui-layout/client": ["/Users/white/.dsh/source/current/packages/client/ui-layout/lib/types/client/index.d.ts"],
       "react": ["/Users/white/.dsh/source/current/node_modules/.pnpm/@types+react@18.3.31/node_modules/@types/react"],
-      "react/jsx-runtime": ["/Users/white/.dsh/source/current/node_modules/.pnpm/@types+react@18.3.31/node_modules/@types/react/jsx-runtime.d.ts"]
+      "react/jsx-runtime": ["/Users/white/.dsh/source/current/node_modules/.pnpm/@types+react@18.3.31/node_modules/@types/react/jsx-runtime.d.ts"],
+      "react-dom/client": ["/Users/white/.dsh/source/current/node_modules/.pnpm/@types+react-dom@18.3.7_@types+react@18.3.31/node_modules/@types/react-dom/client.d.ts"]
     }
   },
   "include": ["src"]

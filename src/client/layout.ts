@@ -1,0 +1,197 @@
+/**
+ * DOM layout controller for the OpenBiliClaw panel column.
+ *
+ * The official DSH frame is a three-column grid (`sidebar | center | details`);
+ * there is no root-scoped `aside` slot and `ctx.layout` has no aside verbs, so
+ * the panel cannot claim a column through the slot system. This controller
+ * extends the frame grid directly — the same technique as dsh-aionui-panel:
+ * it appends one trailing grid item (the panel column) and re-writes the
+ * frame's inline `grid-template-columns` with the shell's own tracks followed
+ * by the panel width. A MutationObserver mirrors every shell grid write, so
+ * the panel column survives sidebar/details changes; the shell's inline style
+ * is always the source of truth (never guessed).
+ *
+ * Collapsing keeps the column mounted at width 0. Failure policy: DOM wiring
+ * errors are logged, never thrown — a plugin apply throw fails the whole GUI.
+ * @module @openbiliclaw/dsh-plugin
+ */
+import type { StateHandle } from './store.ts'
+import { PANEL_MAX_WIDTH_PX, PANEL_MIN_WIDTH_PX, MIN_CHAT_PX, persistPanelOpen } from './store.ts'
+
+/** The column element marker (mount.tsx targets it). */
+export const PANEL_COL_SELECTOR = '[data-obc-panel-col]'
+
+/** Parse an inline grid-template-columns string into its tracks (paren-safe). */
+export function parseGridTracks(input: string): string[] {
+  const tracks: string[] = []
+  let depth = 0
+  let current = ''
+  for (const char of input) {
+    if (char === '(') depth += 1
+    if (char === ')') depth = Math.max(0, depth - 1)
+    if (char === ' ' && depth === 0) {
+      if (current !== '') {
+        tracks.push(current)
+        current = ''
+      }
+      continue
+    }
+    current += char
+  }
+  if (current !== '') tracks.push(current)
+  return tracks
+}
+
+/** Extract a px width from one track (0 for fr/minmax/non-px tracks). */
+export function trackPx(track: string): number {
+  const match = /^(-?[\d.]+)px$/.exec(track.trim())
+  return match === null ? 0 : Number(match[1])
+}
+
+/** Locate the frame grid the panel column appends into. */
+function findFrame(): HTMLElement | null {
+  return document.querySelector<HTMLElement>('[class*="sidebarCol"]')?.parentElement ?? null
+}
+
+/** The layout controller: frame sync, column append, grid rewrite, toggle. */
+export class PanelLayoutController {
+  private frame: HTMLElement | null = null
+  private column: HTMLDivElement | null = null
+  private styleObserver: MutationObserver | null = null
+  private sizeObserver: ResizeObserver | null = null
+  private waitObserver: MutationObserver | null = null
+  private shellTracks: string[] = []
+  private frameWidth = 0
+  private disposers: Array<() => void> = []
+
+  constructor(private readonly store: StateHandle<{ open: boolean; width: number }>) {}
+
+  /** Start watching for the frame and attach once it appears. */
+  mount(): void {
+    const tryAttach = (): void => {
+      if (this.frame !== null) return
+      const frame = findFrame()
+      if (frame === null) return
+      this.attach(frame)
+    }
+    this.waitObserver = new MutationObserver(() => { tryAttach() })
+    this.waitObserver.observe(document.body, { childList: true, subtree: true })
+    tryAttach()
+  }
+
+  /** Attach to the frame: column, observers, store subscription. */
+  private attach(frame: HTMLElement): void {
+    this.frame = frame
+
+    const column = document.createElement('div')
+    column.dataset.obcPanelCol = ''
+    column.style.minWidth = '0'
+    column.style.overflow = 'hidden'
+    column.style.display = 'flex'
+    column.style.flexDirection = 'column'
+    column.style.visibility = 'hidden'
+    frame.appendChild(column)
+    this.column = column
+
+    // Mirror every shell grid write: any write that isn't ours re-appends ours.
+    this.styleObserver = new MutationObserver(() => { this.syncGrid() })
+    this.styleObserver.observe(frame, { attributes: true, attributeFilter: ['style'] })
+
+    // Measure the row width for the clamp, then re-apply on resize.
+    this.sizeObserver = new ResizeObserver(() => {
+      this.measure()
+      this.applyGrid()
+    })
+    this.sizeObserver.observe(frame)
+
+    // Store -> DOM.
+    this.disposers.push(this.store.subscribe(() => { this.applyGrid() }))
+
+    // Initial sync: read the shell's inline grid (already applied).
+    const initial = frame.style.gridTemplateColumns
+    if (initial !== '') {
+      const tracks = parseGridTracks(initial)
+      if (tracks.length >= 2) this.shellTracks = tracks
+    }
+    this.measure()
+    this.applyGrid()
+  }
+
+  /** Re-write the frame grid and toggle the column visibility. */
+  private applyGrid(): void {
+    if (this.frame === null) return
+    if (this.shellTracks.length < 2) return
+    const state = this.store.getSnapshot()
+    const width = state.open ? this.clampWidth(state.width) : 0
+
+    // Shell tracks: [sidebar, center, details, ...]; center is always the
+    // fluid track, so it is re-stated as minmax(0px, 1fr) (the browser's own
+    // serialization of minmax(0, 1fr)) while every other shell track is
+    // preserved verbatim, then our panel column is appended.
+    const shell = this.shellTracks
+    const grid = `${shell[0]} minmax(0px, 1fr) ${shell.slice(2).join(' ')} ${Math.round(width)}px`.trim()
+    this.frame.style.gridTemplateColumns = grid
+
+    if (this.column !== null) {
+      this.column.style.visibility = width > 0 ? 'visible' : 'hidden'
+    }
+  }
+
+  /** Clamp the requested width so the chat area keeps at least MIN_CHAT_PX. */
+  private clampWidth(requested: number): number {
+    const sidebar = this.shellTracks.length >= 1 ? trackPx(this.shellTracks[0] ?? '') : 0
+    const details = this.shellTracks.length >= 3 ? trackPx(this.shellTracks[2] ?? '') : 0
+    const available = Math.max(0, this.frameWidth - sidebar - details)
+    const maxByContainer = Math.max(PANEL_MIN_WIDTH_PX, available - MIN_CHAT_PX)
+    return Math.min(PANEL_MAX_WIDTH_PX, Math.min(requested, maxByContainer))
+  }
+
+  /**
+   * Mirror shell grid writes. Our own write is the shell's track count plus
+   * one (the panel column), so a write at that count is kept; any other write
+   * is the shell's (or a foreign plugin's), so its tracks are remembered and
+   * our column is re-appended. Track count — not string equality — detects the
+   * two cases, because the browser re-serializes `minmax(0, 1fr)` as
+   * `minmax(0px, 1fr)` and a string comparison would never match.
+   */
+  private syncGrid(): void {
+    if (this.frame === null) return
+    const inline = this.frame.style.gridTemplateColumns
+    if (inline === '') return
+    const tracks = parseGridTracks(inline)
+    if (tracks.length === this.shellTracks.length + 1) return
+    if (tracks.length >= 2) {
+      this.shellTracks = tracks
+      this.applyGrid()
+    }
+  }
+
+  /** Measure the frame width (used by the clamp). */
+  private measure(): void {
+    if (this.frame === null) return
+    this.frameWidth = this.frame.getBoundingClientRect().width
+  }
+
+  /** Toggle the panel open/closed. */
+  toggle(): void {
+    this.setOpen(!this.store.getSnapshot().open)
+  }
+
+  /** Open or close the panel (persisted). */
+  setOpen(open: boolean): void {
+    this.store.update((prev) => (prev.open === open ? prev : { ...prev, open }))
+    persistPanelOpen(open)
+    this.applyGrid()
+  }
+
+  /** Detach everything (plugin unload). */
+  dispose(): void {
+    this.waitObserver?.disconnect()
+    this.styleObserver?.disconnect()
+    this.sizeObserver?.disconnect()
+    for (const dispose of this.disposers) dispose()
+    this.column?.remove()
+    this.frame = null
+    this.column = null
+  }
+}
