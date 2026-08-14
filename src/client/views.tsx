@@ -8,9 +8,9 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
-  appendRecommendations, fetchActivityFeed, fetchDelightBatch, fetchRuntimeStatus, fetchSavedStatus,
+  appendRecommendations, fetchActivityFeed, fetchDelightBatch, fetchInitStatus, fetchRuntimeStatus, fetchSavedStatus,
   fetchRecommendations, removeSaved, reportClick, reshuffleRecommendations, respondToDelight, saveItem,
-  stableId, submitFeedback, type ActivityItem, type DelightItem, type RecommendationItem,
+  stableId, startInit, submitFeedback, type ActivityItem, type DelightItem, type RecommendationItem,
   type RuntimeStatus,
 } from './api.ts'
 import { ClockIcon, StarIcon } from './icons.tsx'
@@ -641,6 +641,50 @@ export function ActivityFooter(props: { base: string }): React.JSX.Element | nul
   )
 }
 
+/** First-run init prompt (popup's empty-state init card, simplified). */
+function InitPrompt(props: { base: string; onDone: () => void; onError: (text: string) => void }): React.JSX.Element {
+  const { base, onDone, onError } = props
+  const [busy, setBusy] = useState(false)
+  const [status, setStatus] = useState('')
+  const run = useCallback(async () => {
+    setBusy(true)
+    setStatus('正在提交初始化任务…')
+    try {
+      await startInit(base, {})
+      for (let attempt = 0; attempt < 60; attempt += 1) {
+        await new Promise(resolve => window.setTimeout(resolve, 3_000))
+        const init = await fetchInitStatus(base)
+        if (init.initialized) {
+          setStatus('初始化完成，画像已生成。')
+          onDone()
+          return
+        }
+        if (!init.running) {
+          setStatus('初始化尚未完成；可稍后刷新，或到 设置-通用 重新初始化。')
+          return
+        }
+        setStatus('初始化进行中，正在拉取数据并生成画像…')
+      }
+      setStatus('初始化仍在后台进行，请稍后刷新查看。')
+    } catch (err) {
+      onError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setBusy(false)
+    }
+  }, [base, onDone, onError])
+
+  return (
+    <div className={css.initPrompt}>
+      <div className={css.initPromptCopy}>
+        <strong>画像还没攒起来</strong>
+        <span>先跑一次初始化：拉取你的平台历史、生成画像，并准备首轮推荐池。</span>
+        {status !== '' ? <span className={css.initPromptStatus} role="status">{status}</span> : null}
+      </div>
+      <ActionButton label={busy ? '初始化中…' : '开始初始化'} primary disabled={busy} onClick={() => void run()} />
+    </div>
+  )
+}
+
 /** 推荐 tab: header + pool status + delight + recommendation cards + activity. */
 export function RecommendView(props: { base: string; refreshKey: number }): React.JSX.Element {
   const { base, refreshKey } = props
@@ -748,9 +792,13 @@ export function RecommendView(props: { base: string; refreshKey: number }): Reac
             </div>
           ) : null}
         </div>
-        <ActionButton label="换一批" disabled={busy !== ''} onClick={() => { setExhausted(false); setAppendBlocked(false); void run('reshuffle', () => reshuffleRecommendations(base, { excludedBvids: excludeAll })) }} />
+        <div className={css.recHeaderActions}>
+          <ActionButton label="刷新" disabled={busy !== ''} onClick={() => { setExhausted(false); setAppendBlocked(false); void reload() }} />
+          <ActionButton label="换一批" disabled={busy !== ''} onClick={() => { setExhausted(false); setAppendBlocked(false); void run('reshuffle', () => reshuffleRecommendations(base, { excludedBvids: excludeAll })) }} />
+        </div>
       </div>
       {error !== '' ? <ErrorNote text={error} /> : null}
+      {status?.initialized === false ? <InitPrompt base={base} onDone={() => void reload()} onError={setError} /> : null}
       <DelightBanner key={`delight-${refreshKey}`} base={base} onError={setError} />
       {items !== null && items.length === 0
         ? <EmptyState text="还没刷出新东西。让 OpenBiliClaw 先积累一些兴趣信号，或等下一轮刷新。" />

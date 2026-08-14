@@ -358,6 +358,44 @@
   min-width: 0;
 }
 
+.recHeaderActions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.initPrompt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(230, 237, 248, 0.92);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(250, 251, 255, 0.9));
+  box-shadow: var(--obc-shadow-sm);
+}
+
+.initPromptCopy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--obc-text-secondary);
+  line-height: 1.55;
+}
+
+.initPromptCopy strong {
+  font-size: 13px;
+  color: var(--obc-text);
+}
+
+.initPromptStatus {
+  color: var(--obc-text-muted);
+}
+
 .recKicker {
   font-size: 9px;
   font-weight: 700;
@@ -929,6 +967,34 @@
 .syncChip[data-tone='info'] {
   color: var(--obc-brand-strong);
   background: var(--obc-brand-soft);
+}
+
+.savedFeedbackRow {
+  display: flex;
+  gap: 5px;
+  margin-top: 3px;
+  flex-wrap: wrap;
+}
+
+.historyRestoreList {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 3px;
+}
+
+.historyRestoreRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.historyRestoreLabel {
+  font-size: 10px;
+  color: var(--obc-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ── dialogue ────────────────────────────────────────────────────────── */
@@ -2350,6 +2416,75 @@
   font-weight: 800;
   color: var(--obc-text);
   margin: 0;
+}
+
+.cognitionCard {
+  border: 1px solid rgba(231, 238, 248, 0.96);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.94);
+  padding: 8px 10px;
+}
+
+.cognitionToggle {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  color: var(--obc-text);
+}
+
+.cognitionToggle:disabled {
+  cursor: default;
+}
+
+.cognitionSummary {
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.cognitionContext {
+  font-size: 10.5px;
+  color: var(--obc-text-secondary);
+  line-height: 1.45;
+}
+
+.cognitionMeta {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 9.5px;
+  color: var(--obc-text-muted);
+}
+
+.cognitionSource {
+  color: var(--obc-brand-strong);
+}
+
+.cognitionDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 7px;
+  padding-top: 7px;
+  border-top: 1px dashed rgba(217, 227, 242, 0.95);
+}
+
+.cognitionDetail {
+  font-size: 10.5px;
+  color: var(--obc-text-secondary);
+  line-height: 1.55;
+}
+
+.cognitionDetailLabel {
+  font-weight: 800;
+  color: var(--obc-text);
+  margin-right: 5px;
 }
 
 .profilePhaseCopy {

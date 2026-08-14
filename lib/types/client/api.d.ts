@@ -158,6 +158,18 @@ export interface PendingConfirmation {
     interpretation: string;
 }
 /** Full profile summary (canonical surface fields). */
+/** One recent cognition update (profile tab, popup parity). */
+export interface CognitionUpdate {
+    summary: string;
+    context_line: string;
+    impact: string;
+    reasoning: string;
+    evidence: string;
+    source: string;
+    source_label: string;
+    expand_hint: string;
+    created_at: string;
+}
 export interface ProfileSummary {
     initialized: boolean;
     personality_portrait: string;
@@ -227,6 +239,9 @@ export interface ProfileSummary {
         confirmation_count: number;
         confirmation_threshold: number;
     }>;
+    recent_cognition_updates: CognitionUpdate[];
+    has_more_cognition_updates: boolean;
+    next_cognition_cursor: string;
     active_insights: Array<{
         hypothesis: string;
         evidence: string[];
@@ -240,6 +255,7 @@ export interface ProfileSummary {
         trend: string;
         emotion_guess: string;
     }>;
+    overrides: Record<string, unknown>;
 }
 /** One activity feed item. */
 export interface ActivityItem {
@@ -307,6 +323,28 @@ export declare function submitFeedback(base: string, payload: {
     note?: string;
     request_id: string;
 }, signal?: AbortSignal): Promise<void>;
+/** One raw behavior event (service-worker batch item). */
+export interface BehaviorEvent {
+    type: string;
+    url?: string;
+    title?: string;
+    timestamp: number;
+    source_platform?: string;
+    context?: Record<string, unknown>;
+    metadata?: Record<string, unknown>;
+    event_id: string;
+    watch_seconds?: number;
+    video_duration_seconds?: number;
+}
+/** POST /api/events — ingest behavior events (e.g. saved-card feedback). */
+export declare function sendBehaviorEvents(base: string, events: BehaviorEvent[], signal?: AbortSignal): Promise<{
+    accepted: number;
+    rejected: Array<{
+        index: number;
+        type: string;
+        reason: string;
+    }>;
+}>;
 /** GET /api/delight/pending-batch — the full un-notified delight queue. */
 export declare function fetchDelightBatch(base: string, signal?: AbortSignal): Promise<DelightItem[]>;
 /** GET /api/notifications/pending — one notification-worthy recommendation. */
@@ -399,7 +437,11 @@ export declare function fetchRuntimeStatus(base: string, signal?: AbortSignal): 
 /** GET /api/health — reachability probe. */
 export declare function fetchHealth(base: string, signal?: AbortSignal): Promise<boolean>;
 /** GET /api/profile-summary — the AI profile summary (canonical surface shape). */
-export declare function fetchProfileSummary(base: string, signal?: AbortSignal): Promise<ProfileSummary | null>;
+export declare function fetchProfileSummary(base: string, opts?: {
+    limit?: number;
+    cursor?: string;
+    signal?: AbortSignal;
+}): Promise<ProfileSummary | null>;
 /** GET /api/activity-feed — recent activity entries (cursor pagination). */
 export declare function fetchActivityFeed(base: string, opts?: {
     limit?: number;

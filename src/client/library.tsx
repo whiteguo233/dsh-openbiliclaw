@@ -6,7 +6,8 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
-  fetchContentHistory, fetchSaved, pollSavedSyncTask, removeSaved, syncSavedItems,
+  fetchContentHistory, fetchSaved, fetchSavedStatus, pollSavedSyncTask, removeSaved,
+  saveItem, sendBehaviorEvents, stableId, syncSavedItems,
   type ContentHistoryItem, type SavedItem, type SavedSyncItem,
 } from './api.ts'
 import { ActionButton, EmptyState, ErrorNote, MetaRow, Thumb } from './views.tsx'
@@ -89,6 +90,159 @@ function syncResultSummary(results: SavedSyncItem[]): string {
   return `同步完成：${parts.join(' · ')}`
 }
 
+/** True when this saved item can still be submitted to the platform. */
+function savedItemActionable(item: SavedItem): boolean {
+  if (item.sync_status === 'syncing') return false
+  if (SYNC_HIDDEN_STATUSES.has(item.sync_status)) return false
+  if (item.sync_status === 'unsupported'
+    && (item.error_code === 'local_only_source' || item.error_code === 'unsupported_content_type')) return false
+  return true
+}
+
+/** Send one saved-card feedback as a behavior event (popup parity). */
+async function postSavedFeedback(base: string, item: SavedItem, feedbackType: string, note = ''): Promise<void> {
+  const contentId = item.content_id !== '' ? item.content_id : item.item_key.split(':').slice(1).join(':')
+  const result = await sendBehaviorEvents(base, [{
+    type: 'feedback',
+    source_platform: item.source_platform !== '' ? item.source_platform : 'bilibili',
+    title: item.title,
+    url: item.content_url,
+    timestamp: Date.now(),
+    metadata: {
+      feedback_type: feedbackType,
+      bvid: contentId,
+      content_id: contentId,
+      feedback_note: note,
+      saved_feedback: true,
+    },
+    event_id: stableId(),
+  }])
+  if (result.accepted < 1) {
+    const reason = result.rejected[0]?.reason ?? ''
+    throw new Error(reason === 'not_initialized' ? '画像尚未就绪，暂时无法记录反馈。' : '反馈未被接受，请稍后重试。')
+  }
+}
+
+/** One saved membership card: open/remove + per-item sync + feedback + cross-list toggle. */
+function SavedCard(props: {
+  base: string
+  listKind: 'favorite' | 'watch_later'
+  item: SavedItem
+  removing: string
+  syncing: boolean
+  onRemove: (itemKey: string) => void
+  onSync: (itemKey: string) => void
+}): React.JSX.Element {
+  const { base, listKind, item, removing, syncing, onRemove, onSync } = props
+  const otherKind = listKind === 'favorite' ? 'watch_later' : 'favorite'
+  const [otherSaved, setOtherSaved] = useState(false)
+  const [otherBusy, setOtherBusy] = useState(false)
+  const [feedbackBusy, setFeedbackBusy] = useState('')
+  const [feedbackStatus, setFeedbackStatus] = useState('')
+  const status = syncStatusLabel(item.sync_status)
+  const actionable = savedItemActionable(item)
+
+  useEffect(() => {
+    let cancelled = false
+    void fetchSavedStatus(base, otherKind, item.item_key)
+      .then(saved => { if (!cancelled) setOtherSaved(saved) })
+      .catch(() => { if (!cancelled) setOtherSaved(false) })
+    return () => { cancelled = true }
+  }, [base, item.item_key, otherKind])
+
+  const toggleOther = useCallback(async () => {
+    if (otherBusy) return
+    setOtherBusy(true)
+    try {
+      if (otherSaved) await removeSaved(base, otherKind, item.item_key)
+      else {
+        await saveItem(base, otherKind, {
+          source_platform: item.source_platform !== '' ? item.source_platform : 'bilibili',
+          content_id: item.content_id !== '' ? item.content_id : item.item_key.split(':').slice(1).join(':'),
+          content_url: item.content_url,
+          content_type: item.content_type !== '' ? item.content_type : 'video',
+          title: item.title,
+          author_name: item.author_name,
+          cover_url: item.cover_url,
+        })
+      }
+      setOtherSaved(prev => !prev)
+      setFeedbackStatus(otherSaved ? '已从另一列表移除。' : (otherKind === 'favorite' ? '已加入本地收藏。' : '已加入本地稍后再看。'))
+    } catch (err) {
+      setFeedbackStatus(err instanceof Error ? err.message : String(err))
+    } finally {
+      setOtherBusy(false)
+    }
+  }, [base, item, otherBusy, otherKind, otherSaved])
+
+  const feedback = useCallback(async (type: string, note = '') => {
+    setFeedbackBusy(type)
+    setFeedbackStatus('')
+    try {
+      await postSavedFeedback(base, item, type, note)
+      setFeedbackStatus(type === 'like' ? '已记录喜欢，会用于优化画像。' : type === 'dislike' ? '已记录不感兴趣，会用于优化画像。' : '已提交聊天线索。')
+    } catch (err) {
+      setFeedbackStatus(err instanceof Error ? err.message : String(err))
+    } finally {
+      setFeedbackBusy('')
+    }
+  }, [base, item])
+
+  const comment = useCallback(() => {
+    const draft = window.prompt('想围绕这条聊什么？')
+    if (draft === null) return
+    const note = draft.trim()
+    if (note === '') {
+      setFeedbackStatus('先写一句想聊的内容，再提交这条反馈。')
+      return
+    }
+    void feedback('comment', note)
+  }, [feedback])
+
+  const open = useCallback(() => {
+    const url = item.content_url !== ''
+      ? item.content_url
+      : item.source_platform === 'bilibili' && item.content_id !== ''
+        ? `https://www.bilibili.com/video/${item.content_id}`
+        : ''
+    if (url !== '') window.open(url, '_blank', 'noopener')
+  }, [item.content_id, item.content_url, item.source_platform])
+
+  const anyBusy = removing !== '' || syncing || feedbackBusy !== '' || otherBusy
+  const syncLabel = item.sync_status === 'pending' ? '同步' : '重试同步'
+
+  return (
+    <div className={css.card}>
+      <Thumb url={item.cover_url} title={item.title} kind="video" platform={item.source_platform} />
+      <div className={css.cardBody}>
+        <div className={css.cardTitle}>{item.title !== '' ? item.title : item.item_key}</div>
+        <MetaRow platform={item.source_platform} author={item.author_name} />
+        <div className={css.syncBadgeRow}>
+          <span className={css.syncChip} data-tone={status.tone}>{status.label}</span>
+          <span className={css.syncInlineDetail}>{syncResultDetail({ status: item.sync_status, resolved_target: item.resolved_target, error_message: item.error_message })}</span>
+        </div>
+        <div className={css.cardActions}>
+          <ActionButton label="打开" primary disabled={anyBusy} onClick={open} />
+          {actionable ? <ActionButton label={syncLabel} disabled={anyBusy} onClick={() => onSync(item.item_key)} /> : null}
+          <ActionButton label="移除" danger disabled={anyBusy} onClick={() => onRemove(item.item_key)} />
+        </div>
+        <div className={css.savedFeedbackRow}>
+          <ActionButton label="喜欢" disabled={anyBusy} onClick={() => void feedback('like')} />
+          <ActionButton label="不感兴趣" disabled={anyBusy} onClick={() => void feedback('dislike')} />
+          <ActionButton label="聊一聊" disabled={anyBusy} onClick={comment} />
+          <ActionButton
+            label={otherKind === 'favorite' ? (otherSaved ? '已收藏' : '收藏') : (otherSaved ? '已稍后' : '稍后再看')}
+            disabled={anyBusy}
+            title={otherKind === 'favorite' ? '在本地收藏列表之间切换' : '在本地稍后再看列表之间切换'}
+            onClick={() => void toggleOther()}
+          />
+        </div>
+        {feedbackStatus !== '' ? <div className={css.feedbackStatus} data-tone={feedbackBusy !== '' ? 'info' : undefined}>{feedbackStatus}</div> : null}
+      </div>
+    </div>
+  )
+}
+
 /** Saved list sub-view (稍后再看 / 收藏). */
 function SavedList(props: { base: string; listKind: 'favorite' | 'watch_later' }): React.JSX.Element {
   const { base, listKind } = props
@@ -159,14 +313,14 @@ function SavedList(props: { base: string; listKind: 'favorite' | 'watch_later' }
     }
   }, [base, reload])
 
-  const startSync = useCallback(async () => {
+  const runSync = useCallback(async (itemKeys: string[]) => {
     if (syncing || removing !== '') return
     setSyncing(true)
     setSyncError('')
     setSyncResults(null)
-    setSyncMessage('正在提交同步任务…')
+    setSyncMessage(itemKeys.length === 0 ? '正在提交同步任务…' : '正在同步这条内容…')
     try {
-      const batch = await syncSavedItems(base, listKind, [])
+      const batch = await syncSavedItems(base, listKind, itemKeys)
       if (!mountedRef.current) return
       setSyncResults(batch.items)
       if (batch.items.length === 0) {
@@ -203,7 +357,13 @@ function SavedList(props: { base: string; listKind: 'favorite' | 'watch_later' }
   }, [base, listKind, reload])
 
   const visibleItems = items !== null ? items.filter(item => !SYNC_HIDDEN_STATUSES.has(item.sync_status)) : null
-  const pendingCount = visibleItems !== null ? visibleItems.filter(item => item.sync_status !== 'syncing').length : 0
+  const pendingCount = visibleItems !== null ? visibleItems.filter(savedItemActionable).length : 0
+  const allSynced = items !== null && items.length > 0 && visibleItems !== null && visibleItems.length === 0
+  const syncButtonLabel = syncing
+    ? '同步中…'
+    : pendingCount > 0
+      ? `同步到平台（${pendingCount}）`
+      : allSynced ? '已全部同步' : '没有可同步项'
 
   return (
     <>
@@ -211,10 +371,10 @@ function SavedList(props: { base: string; listKind: 'favorite' | 'watch_later' }
       {total > 0 || syncing ? (
         <div className={css.syncToolbar}>
           <ActionButton
-            label={syncing ? '同步中…' : pendingCount > 0 ? `同步到平台（${pendingCount}）` : '已全部同步'}
+            label={syncButtonLabel}
             primary
             disabled={syncing || removing !== '' || pendingCount === 0}
-            onClick={() => void startSync()}
+            onClick={() => void runSync([])}
           />
           {syncMessage !== '' ? <span className={css.syncMessage}>{syncMessage}</span> : null}
           {syncError !== '' ? <span className={css.syncMessage} data-tone="error" role="alert">{syncError}</span> : null}
@@ -241,38 +401,18 @@ function SavedList(props: { base: string; listKind: 'favorite' | 'watch_later' }
       {items !== null && items.length > 0 && visibleItems !== null && visibleItems.length === 0
         ? <EmptyState text="本地条目已全部同步到 B 站；已同步条目已从侧栏隐藏，数据仍保留在本地。" />
         : null}
-      {visibleItems?.map(item => {
-        const status = syncStatusLabel(item.sync_status)
-        return (
-          <div className={css.card} key={item.item_key}>
-            <Thumb url={item.cover_url} title={item.title} kind="video" platform={item.source_platform} />
-            <div className={css.cardBody}>
-              <div className={css.cardTitle}>{item.title !== '' ? item.title : item.item_key}</div>
-              <MetaRow platform={item.source_platform} author={item.author_name} />
-              <div className={css.syncBadgeRow}>
-                <span className={css.syncChip} data-tone={status.tone}>{status.label}</span>
-                <span className={css.syncInlineDetail}>{syncResultDetail({ status: item.sync_status, resolved_target: item.resolved_target, error_message: item.error_message })}</span>
-              </div>
-              <div className={css.cardActions}>
-                <ActionButton
-                  label="打开"
-                  primary
-                  disabled={removing !== ''}
-                  onClick={() => {
-                    const url = item.content_url !== ''
-                      ? item.content_url
-                      : item.source_platform === 'bilibili' && item.content_id !== ''
-                        ? `https://www.bilibili.com/video/${item.content_id}`
-                        : ''
-                    if (url !== '') window.open(url, '_blank', 'noopener')
-                  }}
-                />
-                <ActionButton label="移除" danger disabled={removing !== ''} onClick={() => void remove(item.item_key)} />
-              </div>
-            </div>
-          </div>
-        )
-      })}
+      {visibleItems?.map(item => (
+        <SavedCard
+          key={item.item_key}
+          base={base}
+          listKind={listKind}
+          item={item}
+          removing={removing}
+          syncing={syncing}
+          onRemove={itemKey => void remove(itemKey)}
+          onSync={itemKey => void runSync([itemKey])}
+        />
+      ))}
     </>
   )
 }
@@ -307,6 +447,75 @@ function HistoryContextBadges(props: { item: ContentHistoryItem }): React.JSX.El
   return (
     <div className={css.badgeRow}>
       {badges.map(badge => <span className={css.contextBadge} data-kind={badge.kind} key={badge.key}>{badge.label}</span>)}
+    </div>
+  )
+}
+
+/** Restore row for one removed favorite/watch_later context (popup parity). */
+function HistoryRestoreRow(props: {
+  base: string
+  item: ContentHistoryItem
+  context: { context: string; occurred_at: string; restored: boolean }
+  onRestored: () => void
+  onError: (text: string) => void
+}): React.JSX.Element | null {
+  const { base, item, context, onRestored, onError } = props
+  const [busy, setBusy] = useState(false)
+  const kind = context.context === 'favorite' ? 'favorite' : 'watch_later'
+  const label = context.context === 'favorite' ? '收藏' : '稍后再看'
+
+  const restore = useCallback(async () => {
+    setBusy(true)
+    try {
+      await saveItem(base, kind, {
+        source_platform: item.source_platform !== '' ? item.source_platform : 'bilibili',
+        content_id: item.content_id !== '' ? item.content_id : item.item_key.split(':').slice(1).join(':'),
+        content_url: item.content_url,
+        content_type: item.content_type !== '' ? item.content_type : 'video',
+        title: item.title,
+        author_name: item.author_name,
+        cover_url: item.cover_url,
+      })
+      onRestored()
+    } catch (err) {
+      onError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setBusy(false)
+    }
+  }, [base, item, kind, onError, onRestored])
+
+  return (
+    <div className={css.historyRestoreRow}>
+      <span className={css.historyRestoreLabel}>已移除 · {label}</span>
+      <ActionButton label={busy ? '恢复中…' : '恢复'} disabled={busy} onClick={() => void restore()} />
+    </div>
+  )
+}
+
+/** Removed-context restore actions for one history item (only 收藏/稍后再看). */
+function HistoryRestoreActions(props: {
+  base: string
+  item: ContentHistoryItem
+  onRestored: () => void
+  onError: (text: string) => void
+}): React.JSX.Element | null {
+  const { base, item, onRestored, onError } = props
+  const restorable = item.contexts.filter(ctx => (
+    (ctx.context === 'favorite' || ctx.context === 'watch_later') && !ctx.restored
+  ))
+  if (restorable.length === 0) return null
+  return (
+    <div className={css.historyRestoreList}>
+      {restorable.map(ctx => (
+        <HistoryRestoreRow
+          key={`${ctx.context}:${ctx.occurred_at}`}
+          base={base}
+          item={item}
+          context={ctx}
+          onRestored={onRestored}
+          onError={onError}
+        />
+      ))}
     </div>
   )
 }
@@ -346,6 +555,10 @@ function HistoryList(props: { base: string }): React.JSX.Element {
       setLoadingMore(false)
     }
   }, [category, cursor, hasMore, load, loadingMore])
+
+  const restoreContext = useCallback(async () => {
+    await load(category, '', false)
+  }, [category, load])
 
   // Scroll-to-load with prefetch: the sentinel fires 800px early so the next
   // page is fetched before the user reaches the bottom of the history list.
@@ -392,6 +605,9 @@ function HistoryList(props: { base: string }): React.JSX.Element {
             <div className={css.cardTitle}>{item.title !== '' ? item.title : (item.body_text !== '' ? item.body_text.slice(0, 60) : item.item_key)}</div>
             <MetaRow platform={item.source_platform} author={item.author_name} time={item.occurred_at} />
             <HistoryContextBadges item={item} />
+            {category === 'removed'
+              ? <HistoryRestoreActions base={base} item={item} onRestored={() => void restoreContext()} onError={setError} />
+              : null}
             <div className={css.cardActions}>
               <ActionButton
                 label="打开"
