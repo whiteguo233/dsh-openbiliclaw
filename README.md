@@ -106,6 +106,8 @@ DSH Agent（本插件注册的工具 + skill）── Agent Bridge v2 CLI ──
 1. 一个可用的 [DeepSeek Harness](https://github.com/deepseek-ai/DeepSeek-Harness) 部署（含 Web GUI）
 2. 一个运行中的 OpenBiliClaw 后端（主项目，开启 Agent Bridge v2，默认监听 127.0.0.1:8420）
 
+插件要求 DSH `0.1.0-rc.6` 或更高版本；插件的 peer ABI 已与该版本的 `dsh-*` 包及 `@deepseek-ai/cordis ^4.0.1` 对齐。请不要在同一个 profile 中混用 `0.0.1` 时代的 DSH 工具包。
+
 ### 1. 界面槽位（当前 DSH 免配置）
 
 面板渲染在两个**加法槽位**上，无需改 DSH 源码：
@@ -184,4 +186,4 @@ tsdown --env.DSH_BUILD_FACE client   # node 半 + 浏览器半（window.__Module
 
 ## English
 
-A DeepSeek Harness (DSH) client plugin for [OpenBiliClaw](https://github.com/whiteguo233/OpenBiliClaw), the local-first cross-platform content-discovery agent. It adds a left-sidebar OpenBiliClaw button that opens a right-side drawer over the DSH web GUI (the `sidebar.footer.action` + `shell.overlay` seats) with the consumer side of OpenBiliClaw — recommendations with a hero delight banner, infinite scroll with prefetch, saved/history library, Socratic dialogue with interest/avoidance probes, the user profile card, and a settings surface aligned with the browser extension — and registers 22 `openbiliclaw_*` tools plus the `openbiliclaw-adapter` skill so DSH agents can drive the same backend in a closed loop. Crawling and source management intentionally stay in the main project. Requires a DSH deployment (current snapshots ship the `shell.overlay` + `sidebar.footer.action` seats natively) and a running OpenBiliClaw backend (Agent Bridge v2, default `http://127.0.0.1:8420`). See the Chinese section above for install, build and configuration details.
+A DeepSeek Harness (DSH) client plugin for [OpenBiliClaw](https://github.com/whiteguo233/OpenBiliClaw), the local-first cross-platform content-discovery agent. It adds a left-sidebar OpenBiliClaw button that opens a right-side drawer over the DSH web GUI (the `sidebar.footer.action` + `shell.overlay` seats) with the consumer side of OpenBiliClaw — recommendations with a hero delight banner, infinite scroll with prefetch, saved/history library, Socratic dialogue with interest/avoidance probes, the user profile card, and a settings surface aligned with the browser extension — and registers 22 `openbiliclaw_*` tools plus the `openbiliclaw-adapter` skill so DSH agents can drive the same backend in a closed loop. Crawling and source management intentionally stay in the main project. Requires DSH `0.1.0-rc.6` or newer (with the matching `dsh-*` ABI and `@deepseek-ai/cordis ^4.0.1`) plus a running OpenBiliClaw backend (Agent Bridge v2, default `http://127.0.0.1:8420`). See the Chinese section above for install, build and configuration details.
