@@ -1,6 +1,6 @@
 # 🦀 OpenBiliClaw · DSH 客户端插件
 
-**OpenBiliClaw 是本地运行、跨平台、可调教的个性化内容推荐 Agent；本仓库是它的 DeepSeek Harness 客户端插件——DSH 界面常驻第四栏（推荐/内容库/对话/画像/设置），并注册 22 个 Agent Bridge 工具，让 Agent 读推荐、答探测、闭环学习。**
+**OpenBiliClaw 是本地运行、跨平台、可调教的个性化内容推荐 Agent；本仓库是它的 DeepSeek Harness 客户端插件——DSH 左侧栏一个 OpenBiliClaw 按钮，点开右侧滑出抽屉（推荐/内容库/对话/画像/设置），并注册 22 个 Agent Bridge 工具，让 Agent 读推荐、答探测、闭环学习。**
 
 [![License](https://img.shields.io/badge/License-BSD--3--Clause-blue.svg)](LICENSE)
 [![OpenBiliClaw](https://img.shields.io/badge/主项目-OpenBiliClaw-fb7299.svg)](https://github.com/whiteguo233/OpenBiliClaw)
@@ -15,10 +15,10 @@
 
 本仓库是它的 **DeepSeek Harness（DSH）客户端插件**，把「消费侧」搬进 DSH 的 Web GUI：
 
-- **人用侧**：在 DSH 界面右侧开辟第四栏（aside 槽位），一个与浏览器插件 / 手机版视觉一致的侧边面板——推荐流、惊喜推荐、内容库、苏格拉底式对话、用户画像、后端设置，全部在 DSH 里点开即用；
+- **人用侧**：在 DSH 左侧栏底部加一个 OpenBiliClaw 按钮，点开从右侧滑出一个与浏览器插件 / 手机版视觉一致的抽屉面板——推荐流、惊喜推荐、内容库、苏格拉底式对话、用户画像、后端设置，全部在 DSH 里点开即用；
 - **Agent 用侧**：注册 22 个 `openbiliclaw_*` 工具（Agent Bridge v2 CLI）和 `openbiliclaw-adapter` skill，让 DSH 里的 Agent 能读取推荐、回答探测、保存内容、和用户对话，形成「推荐 → 反馈 → 画像 → 更准的推荐」的闭环。
 
-典型场景：左边和 Agent 聊需求，右边顺手刷两条推荐，点个「收藏」，过一会儿右下角弹出兴趣探测，和它聊两句，画像就更懂你了——全程不离开 DSH。
+典型场景：左边和 Agent 聊需求，点左下角的 OpenBiliClaw 按钮，右侧抽屉滑出来顺手刷两条推荐，点个「收藏」，过一会儿弹出兴趣探测，和它聊两句，画像就更懂你了——全程不离开 DSH。
 
 > 边界说明：本插件只做**消费侧**。爬取 / 平台源管理 / 账号同步等能力仍属于主项目（后端 + 浏览器插件 / 手机版），有意不带入 DSH。
 
@@ -71,9 +71,11 @@
 
 ```
 ┌───────────────────────────── DSH Web GUI ─────────────────────────────┐
-│  左边栏     │   会话区        │  详情栏    │  ┌─ OpenBiliClaw 面板 ─┐ │
-│ (DSH 自带)  │  (DSH 自带)     │ (DSH 自带) │  │ 推荐 / 内容库 / 对话 │ │
-│             │                 │           │  │ / 画像 / 设置        │ │
+│  左边栏      │   会话区        │  详情栏     │                          │
+│ (DSH 自带，   │  (DSH 自带)     │ (DSH 自带)  │   ← 右侧滑出 OpenBiliClaw │
+│  底部含       │                 │            │      抽屉（推荐/内容库/  │
+│  OpenBiliClaw │                 │            │      对话/画像/设置）    │
+│  按钮)       │                 │            │                          │
 └─────────────────────────────┬─────────────────────────────────────────┘
                               │ HTTP + WebSocket (默认 http://127.0.0.1:8420)
 ┌─────────────────────────────▼─────────────────────────────────────────┐
@@ -94,9 +96,8 @@ DSH Agent（本插件注册的工具 + skill）── Agent Bridge v2 CLI ──
 | `src/index.ts` + `src/tools.ts` | node 半：22 个 `openbiliclaw_*` 工具（bridge CLI，经 `ctx.shell` 执行器——新版 DSH 中 `bash` 更名为 `shell`）+ 注册 adapter skill |
 | `src/skill.ts` | 解析 SKILL.md frontmatter 并注册为 DSH skill |
 | `src/bridge.ts` | Agent Bridge v2 CLI 调用封装（超时 / 输出上限） |
-| `src/client/*` | browser 半：aside 槽位面板（React），含推荐/内容库/对话/画像/设置/消息抽屉、WebSocket 实时流、深色模式 |
+| `src/client/*` | browser 半：左侧栏按钮（`sidebar.footer.action`）+ 右侧抽屉（`shell.overlay`）面板（React），含推荐/内容库/对话/画像/设置/消息抽屉、WebSocket 实时流、深色模式 |
 | `lib/` | 构建产物（`lib/index.js` node 半 + `lib/client.js` 浏览器半），可直接安装 |
-| `docs/dsh-layout-aside-column.patch` | DSH ui-layout 第四栏（aside 列）补丁（**仅旧版 DSH 需要**，新版已原生支持 aside 列） |
 
 ## 安装
 
@@ -105,19 +106,14 @@ DSH Agent（本插件注册的工具 + skill）── Agent Bridge v2 CLI ──
 1. 一个可用的 [DeepSeek Harness](https://github.com/deepseek-ai/DeepSeek-Harness) 部署（含 Web GUI）
 2. 一个运行中的 OpenBiliClaw 后端（主项目，开启 Agent Bridge v2，默认监听 127.0.0.1:8420）
 
-### 1. 第四栏（新版 DSH 免配置）
+### 1. 界面槽位（当前 DSH 免配置）
 
-面板渲染在 ui-layout 的 `aside` 槽位（第四列）。**新版 DSH 已原生支持 aside 列**（`packages/client/ui-layout` 的 columns/stores/AppFrame 均含 aside 状态），此步直接跳过。
+面板渲染在两个**加法槽位**上，无需改 DSH 源码：
 
-只有旧版 DSH（布局只有三列的快照）才需要打本仓库附带的补丁：
+- **左侧按钮**：`sidebar.footer.action`（侧边栏底部、设置旁的附加动作）
+- **右侧抽屉**：`shell.overlay`（帧级浮层，滑出在详情/文件/变更面板之上，不占用任何列）
 
-```bash
-cd <你的 DSH checkout>/packages/client/ui-layout
-git apply <本仓库>/docs/dsh-layout-aside-column.patch
-# 重新构建 ui-layout（按 DSH 仓库的构建方式）
-```
-
-> 补丁基于旧快照的 ui-layout client 源码；旧版 DSH 升级后若布局包有改动，可能需要重新应用或微调。
+两个槽位都是官方 DSH 自带的 `list` 槽（当前官方 DSH 已移除旧的 `aside` 列），此步直接跳过。
 
 ### 2. 安装插件包
 
@@ -188,4 +184,4 @@ tsdown --env.DSH_BUILD_FACE client   # node 半 + 浏览器半（window.__Module
 
 ## English
 
-A DeepSeek Harness (DSH) client plugin for [OpenBiliClaw](https://github.com/whiteguo233/OpenBiliClaw), the local-first cross-platform content-discovery agent. It adds a persistent fourth column to the DSH web GUI (the `aside` slot) with the consumer side of OpenBiliClaw — recommendations with a hero delight banner, infinite scroll with prefetch, saved/history library, Socratic dialogue with interest/avoidance probes, the user profile card, and a settings surface aligned with the browser extension — and registers 22 `openbiliclaw_*` tools plus the `openbiliclaw-adapter` skill so DSH agents can drive the same backend in a closed loop. Crawling and source management intentionally stay in the main project. Requires a DSH deployment (newer snapshots ship the `aside` column natively; older ones need `docs/dsh-layout-aside-column.patch`) and a running OpenBiliClaw backend (Agent Bridge v2, default `http://127.0.0.1:8420`). See the Chinese section above for install, build and configuration details.
+A DeepSeek Harness (DSH) client plugin for [OpenBiliClaw](https://github.com/whiteguo233/OpenBiliClaw), the local-first cross-platform content-discovery agent. It adds a left-sidebar OpenBiliClaw button that opens a right-side drawer over the DSH web GUI (the `sidebar.footer.action` + `shell.overlay` seats) with the consumer side of OpenBiliClaw — recommendations with a hero delight banner, infinite scroll with prefetch, saved/history library, Socratic dialogue with interest/avoidance probes, the user profile card, and a settings surface aligned with the browser extension — and registers 22 `openbiliclaw_*` tools plus the `openbiliclaw-adapter` skill so DSH agents can drive the same backend in a closed loop. Crawling and source management intentionally stay in the main project. Requires a DSH deployment (current snapshots ship the `shell.overlay` + `sidebar.footer.action` seats natively) and a running OpenBiliClaw backend (Agent Bridge v2, default `http://127.0.0.1:8420`). See the Chinese section above for install, build and configuration details.

@@ -20,20 +20,19 @@ import { MessageIcon, ChatIcon, CollapseIcon, GearIcon, GithubStarIcon, LibraryI
 import { SettingsOverlay } from './settings.tsx'
 import css from './panel.module.css'
 
-/** Business face injected by the aside slot registration. */
+/** Business face injected by the overlay drawer registration. */
 export interface OpenBiliClawInjected {
-  /** Close the aside panel (layout service transition). */
-  closeAside: () => void
+  /** Close the drawer (shared store transition, driven by the panel's collapse button). */
+  closeDrawer: () => void
   /** Whether the shell theme is currently dark. */
   isDark: () => boolean
   /** Subscribe to shell theme changes. Returns the unsubscriber. */
   onThemeChange: (listener: (dark: boolean) => void) => () => void
 }
 
-/** Panel props: the business face injected by the aside slot registration.
- *  (Newer DSH snapshots narrow the aside owner share to column geometry and
- *  drop the occupant inject slot; the registration inject face is the only
- *  share this panel consumes.) */
+/** Panel props: the business face injected by the overlay drawer registration.
+ *  (The registration inject face is the only share this panel consumes; the
+ *  drawer owner handles its own geometry and close semantics.) */
 export type OpenBiliClawPanelProps = OpenBiliClawInjected
 
 type TabKey = 'recommend' | 'library' | 'chat' | 'profile'
@@ -60,10 +59,10 @@ const TABS: Array<{ key: TabKey; label: string; icon: (props: { size?: number })
 ]
 
 /**
- * The aside occupant: OpenBiliClaw user-consumption sidebar.
- * @param props - runtime share + injected actions.
+ * The drawer body: OpenBiliClaw user-consumption panel.
+ * @param props - injected actions (close + theme).
  */
-export function OpenBiliClawPanel({ closeAside, isDark, onThemeChange }: OpenBiliClawPanelProps): React.JSX.Element {
+export function OpenBiliClawPanel({ closeDrawer, isDark, onThemeChange }: OpenBiliClawPanelProps): React.JSX.Element {
   const [dark, setDark] = useState(() => isDark())
   useEffect(() => onThemeChange(setDark), [onThemeChange])
   const [base, setBase] = useState(() => readApiBase())
@@ -263,7 +262,7 @@ export function OpenBiliClawPanel({ closeAside, isDark, onThemeChange }: OpenBil
         <button type="button" className={css.iconButton} title="设置" onClick={() => setSettingsOpen(open => !open)}>
           <GearIcon size={14} />
         </button>
-        <button type="button" className={css.iconButton} title="收起侧栏" onClick={closeAside}>
+        <button type="button" className={css.iconButton} title="收起" onClick={closeDrawer}>
           <CollapseIcon size={14} />
         </button>
       </div>

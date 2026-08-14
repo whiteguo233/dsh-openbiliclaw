@@ -3967,3 +3967,126 @@
   border-color: rgba(251, 114, 153, 0.32);
   background: linear-gradient(180deg, rgba(44, 36, 44, 0.97), rgba(251, 114, 153, 0.12));
 }
+
+/* ── sidebar trigger button (sidebar.footer.action occupant) ─────────── */
+
+/* Wide: full-width row matching the sidebar's compact vertical rhythm; the
+   rail state is the 36px icon control. Brand pink is hardcoded here because
+   this button lives in the DSH sidebar (outside .panel), where the panel's
+   --obc-* palette is not in scope. */
+.sidebarButton {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: calc(100% + 8px);
+  height: 34px;
+  margin: 4px -4px 4px;
+  padding: 6px 2px 6px 10px;
+  box-sizing: border-box;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  cursor: pointer;
+  overflow: hidden;
+  color: var(--dsw-alias-label-primary, #20304a);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 22px;
+}
+
+.sidebarButton:hover {
+  background: var(--dsw-alias-interactive-bg-hover, rgba(0, 0, 0, 0.05));
+}
+
+.sidebarButton[data-active='true'] {
+  color: #f65788;
+  background: rgba(251, 114, 153, 0.12);
+}
+
+.sidebarButton[data-wide='false'] {
+  width: 36px;
+  height: 36px;
+  margin: 8px 0 10px;
+  justify-content: center;
+  gap: 0;
+  padding: 0;
+  border-radius: 50%;
+}
+
+.sidebarButtonIcon {
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  flex: none;
+  display: block;
+  object-fit: cover;
+  background: linear-gradient(135deg, #fb7299, #ff8cb0);
+  box-shadow: 0 4px 8px rgba(251, 114, 153, 0.25);
+}
+
+.sidebarButtonLabel {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* ── floating right drawer (shell.overlay occupant) ──────────────────── */
+
+/* The overlay layer forces pointer-events:auto on direct children; the root
+   must stay click-through while closed so it never blocks the app. The
+   backdrop/drawer opt back in (the drawer only when open). */
+.drawerRoot {
+  position: absolute;
+  inset: 0;
+  pointer-events: none !important;
+}
+
+.drawerBackdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(32, 48, 74, 0.32);
+  backdrop-filter: blur(2px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease;
+}
+
+.drawerRoot[data-open='true'] .drawerBackdrop {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(400px, 92vw);
+  min-width: 0;
+  overflow: hidden;
+  background: #fffafc;
+  border-left: 1px solid rgba(217, 227, 242, 0.95);
+  box-shadow: -18px 0 40px rgba(56, 76, 112, 0.16);
+  transform: translateX(100%);
+  pointer-events: auto;
+  transition: transform 240ms cubic-bezier(0.22, 0.8, 0.28, 1);
+}
+
+.drawerRoot[data-open='true'] .drawer {
+  transform: translateX(0);
+}
+
+/* Follow the panel into dark mode (the panel's data-dark lives on a child, so
+   :has() reaches it from the drawer shell). */
+.drawer:has(.panel[data-dark='true']) {
+  background: #16171a;
+  border-left-color: rgba(255, 255, 255, 0.08);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drawerBackdrop,
+  .drawer {
+    transition: none;
+  }
+}
