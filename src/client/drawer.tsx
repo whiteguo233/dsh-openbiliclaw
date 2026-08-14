@@ -1,10 +1,12 @@
 /**
  * The OpenBiliClaw floating right drawer: the `shell.overlay` occupant. It
- * renders a click-away backdrop plus a right-aligned panel that slides in over
- * every column, without occupying the details/aside tracks. The panel stays
+ * renders a right-aligned panel that slides in from the edge — no backdrop, no
+ * dim/blur — so the conversation and coding area underneath stays fully
+ * visible and interactive (non-modal). Only the panel itself intercepts
+ * pointer events; the rest of the frame stays click-through. The panel stays
  * mounted across open/close (state, WebSocket, and health probes survive), and
  * visibility is driven by the shared drawer store so the sidebar button and
- * the backdrop/close control write to the same cell.
+ * the panel's own collapse control write to the same cell.
  * @module @openbiliclaw/dsh-plugin
  */
 import type { PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
@@ -34,7 +36,6 @@ export function OpenBiliClawDrawer({ useStore, actions, isDark, onThemeChange }:
   const open = useStore(s => s.open)
   return (
     <div className={css.drawerRoot} data-open={open || undefined}>
-      <div className={css.drawerBackdrop} aria-hidden="true" onClick={() => { actions.close() }} />
       <aside className={css.drawer} aria-label="OpenBiliClaw">
         <OpenBiliClawPanel
           closeDrawer={() => { actions.close() }}

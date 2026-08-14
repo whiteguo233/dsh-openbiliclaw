@@ -4034,27 +4034,13 @@
 /* ── floating right drawer (shell.overlay occupant) ──────────────────── */
 
 /* The overlay layer forces pointer-events:auto on direct children; the root
-   must stay click-through while closed so it never blocks the app. The
-   backdrop/drawer opt back in (the drawer only when open). */
+   must stay click-through so it never blocks the app underneath. No backdrop:
+   the drawer is non-modal — only the panel itself opts back into pointer
+   events, everything else stays interactive. */
 .drawerRoot {
   position: absolute;
   inset: 0;
   pointer-events: none !important;
-}
-
-.drawerBackdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(32, 48, 74, 0.32);
-  backdrop-filter: blur(2px);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 200ms ease;
-}
-
-.drawerRoot[data-open='true'] .drawerBackdrop {
-  opacity: 1;
-  pointer-events: auto;
 }
 
 .drawer {
@@ -4085,7 +4071,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .drawerBackdrop,
   .drawer {
     transition: none;
   }
