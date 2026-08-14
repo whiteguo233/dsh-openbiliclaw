@@ -43,6 +43,8 @@ export const MIN_CHAT_PX = 400
 
 /** localStorage key for the persisted open/closed preference. */
 const KEY_PANEL_OPEN = 'openbiliclaw:panel-open'
+/** localStorage key for the persisted panel width. */
+const KEY_PANEL_WIDTH = 'openbiliclaw:panel-width'
 
 /** Panel layout state. */
 export interface PanelLayoutState {
@@ -70,10 +72,33 @@ export function persistPanelOpen(open: boolean): void {
   }
 }
 
+/** Read the persisted panel width (clamped to the contract, default otherwise). */
+export function readPanelWidth(): number {
+  try {
+    const raw = localStorage.getItem(KEY_PANEL_WIDTH)
+    if (raw !== null && raw !== '') {
+      const n = Number(raw)
+      if (Number.isFinite(n)) return Math.min(PANEL_MAX_WIDTH_PX, Math.max(PANEL_MIN_WIDTH_PX, n))
+    }
+  } catch {
+    // fall through
+  }
+  return PANEL_DEFAULT_WIDTH_PX
+}
+
+/** Persist the panel width. */
+export function persistPanelWidth(width: number): void {
+  try {
+    localStorage.setItem(KEY_PANEL_WIDTH, String(Math.round(width)))
+  } catch {
+    // best-effort
+  }
+}
+
 /** Create the panel layout store. */
 export function createPanelLayoutStore(): StateHandle<PanelLayoutState> {
   return createState<PanelLayoutState>({
     open: readPanelOpen(),
-    width: PANEL_DEFAULT_WIDTH_PX,
+    width: readPanelWidth(),
   })
 }

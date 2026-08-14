@@ -4030,3 +4030,24 @@
   overflow: hidden;
   white-space: nowrap;
 }
+
+/* ── panel column drag handle (DOM element appended by layout.ts) ────── */
+
+/* A slim pill on the panel's left edge, like the DSH details/aside handles;
+   the hit zone (8px) is the transparent handle element itself. */
+:global(.obc-panel-handle)::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 2px;
+  height: 32px;
+  border-radius: 2px;
+  background: rgba(32, 48, 74, 0.18);
+  transition: background 0.15s ease;
+}
+
+:global(.obc-panel-handle):hover::after {
+  background: rgba(251, 114, 153, 0.55);
+}

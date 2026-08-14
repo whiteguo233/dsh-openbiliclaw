@@ -16,7 +16,11 @@
  * @module @openbiliclaw/dsh-plugin
  */
 import type { StateHandle } from './store.ts'
-import { PANEL_MAX_WIDTH_PX, PANEL_MIN_WIDTH_PX, MIN_CHAT_PX, persistPanelOpen } from './store.ts'
+import {
+  PANEL_DEFAULT_WIDTH_PX, PANEL_MAX_WIDTH_PX, PANEL_MIN_WIDTH_PX, MIN_CHAT_PX,
+  persistPanelOpen, persistPanelWidth,
+} from './store.ts'
+import { handlePointerDragStart } from './drag.ts'
 
 /** The column element marker (mount.tsx targets it). */
 export const PANEL_COL_SELECTOR = '[data-obc-panel-col]'
@@ -57,6 +61,7 @@ function findFrame(): HTMLElement | null {
 export class PanelLayoutController {
   private frame: HTMLElement | null = null
   private column: HTMLDivElement | null = null
+  private handle: HTMLDivElement | null = null
   private styleObserver: MutationObserver | null = null
   private sizeObserver: ResizeObserver | null = null
   private waitObserver: MutationObserver | null = null
@@ -92,6 +97,11 @@ export class PanelLayoutController {
     column.style.visibility = 'hidden'
     frame.appendChild(column)
     this.column = column
+
+    // The absolute drag handle (out of the grid flow), on the panel's left edge.
+    const handle = this.createHandle()
+    frame.appendChild(handle)
+    this.handle = handle
 
     // Mirror every shell grid write: any write that isn't ours re-appends ours.
     this.styleObserver = new MutationObserver(() => { this.syncGrid() })
@@ -135,6 +145,52 @@ export class PanelLayoutController {
     if (this.column !== null) {
       this.column.style.visibility = width > 0 ? 'visible' : 'hidden'
     }
+    if (this.handle !== null) {
+      const left = Math.round(this.frameWidth - width)
+      this.handle.style.left = `${left}px`
+      this.handle.style.display = width > 0 ? 'block' : 'none'
+    }
+  }
+
+  /** Create the drag handle and wire its pointer drag. */
+  private createHandle(): HTMLDivElement {
+    const el = document.createElement('div')
+    el.className = 'obc-panel-handle'
+    el.style.position = 'absolute'
+    el.style.top = '0'
+    el.style.bottom = '0'
+    el.style.zIndex = '30'
+    el.style.width = '8px'
+    el.style.marginLeft = '-4px'
+    el.style.cursor = 'col-resize'
+    el.style.display = 'none'
+
+    el.addEventListener('pointerdown', (event) => {
+      handlePointerDragStart(event, el, {
+        reverse: true,
+        getStartWidth: () => this.store.getSnapshot().width,
+        compute: (start, delta) => this.clampWidth(start + delta),
+        onFrame: (width) => {
+          this.store.update((prev) => (prev.width === width ? prev : { ...prev, width }))
+        },
+        onEnd: (width) => {
+          this.store.update((prev) => (prev.width === width ? prev : { ...prev, width }))
+          persistPanelWidth(width)
+          this.applyGrid()
+        },
+        onDragStateChange: (dragging) => {
+          if (this.frame !== null) this.frame.style.transition = dragging ? 'none' : ''
+        },
+      })
+    })
+
+    // Double-click resets to the contract default width.
+    el.addEventListener('dblclick', () => {
+      this.store.update((prev) => (prev.width === PANEL_DEFAULT_WIDTH_PX ? prev : { ...prev, width: PANEL_DEFAULT_WIDTH_PX }))
+      persistPanelWidth(PANEL_DEFAULT_WIDTH_PX)
+      this.applyGrid()
+    })
+    return el
   }
 
   /** Clamp the requested width so the chat area keeps at least MIN_CHAT_PX. */
@@ -191,7 +247,9 @@ export class PanelLayoutController {
     this.sizeObserver?.disconnect()
     for (const dispose of this.disposers) dispose()
     this.column?.remove()
+    this.handle?.remove()
     this.frame = null
     this.column = null
+    this.handle = null
   }
 }

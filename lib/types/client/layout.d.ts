@@ -27,6 +27,7 @@ export declare class PanelLayoutController {
     private readonly store;
     private frame;
     private column;
+    private handle;
     private styleObserver;
     private sizeObserver;
     private waitObserver;
@@ -43,6 +44,8 @@ export declare class PanelLayoutController {
     private attach;
     /** Re-write the frame grid and toggle the column visibility. */
     private applyGrid;
+    /** Create the drag handle and wire its pointer drag. */
+    private createHandle;
     /** Clamp the requested width so the chat area keeps at least MIN_CHAT_PX. */
     private clampWidth;
     /**

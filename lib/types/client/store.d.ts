@@ -32,6 +32,10 @@ export interface PanelLayoutState {
 export declare function readPanelOpen(): boolean;
 /** Persist the open preference. */
 export declare function persistPanelOpen(open: boolean): void;
+/** Read the persisted panel width (clamped to the contract, default otherwise). */
+export declare function readPanelWidth(): number;
+/** Persist the panel width. */
+export declare function persistPanelWidth(width: number): void;
 /** Create the panel layout store. */
 export declare function createPanelLayoutStore(): StateHandle<PanelLayoutState>;
 //# sourceMappingURL=store.d.ts.map
