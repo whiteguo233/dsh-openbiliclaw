@@ -3932,6 +3932,12 @@
   color: #9aa4b8;
 }
 
+.panel[data-dark='true'] .recCover {
+  background:
+    linear-gradient(145deg, rgba(251, 114, 153, 0.14), rgba(90, 169, 255, 0.12)),
+    rgba(30, 32, 40, 0.96);
+}
+
 .panel[data-dark='true'] .delightCover {
   border-color: rgba(255, 255, 255, 0.14);
   background:
@@ -3950,6 +3956,7 @@
 
 .panel[data-dark='true'] .delightHeroFallback {
   background: linear-gradient(145deg, rgba(251, 114, 153, 0.16), rgba(90, 169, 255, 0.12));
+  color: var(--obc-text);
 }
 
 .panel[data-dark='true'] .pinnedFooter {
