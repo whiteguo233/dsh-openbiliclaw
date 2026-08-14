@@ -180,6 +180,15 @@ tsdown --env.DSH_BUILD_FACE client   # node 半 + 浏览器半（window.__Module
 
 [BSD-3-Clause](LICENSE)
 
+## 友情链接
+
+<details>
+<summary>友情链接</summary>
+
+[![LINUX DO](https://img.shields.io/badge/LINUX_DO-友情链接-4D6BFE?style=flat-square&logo=discourse&logoColor=white)](https://linux.do/)
+
+</details>
+
 ---
 
 ## English
