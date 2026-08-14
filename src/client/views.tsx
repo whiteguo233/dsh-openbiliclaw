@@ -35,6 +35,38 @@ export function formatCount(value: number): string {
   return String(value)
 }
 
+/**
+ * Normalize a card's identity fields into a payload that satisfies the backend
+ * `SavedItemIn` validation (issue #1). The backend only accepts a single
+ * colon-free `content_id` segment (a zhihu typed id is the exception, so a
+ * backend-provided non-empty `content_id` is kept verbatim); the `platform:id`
+ * colon only leaks in through the `bvid` / `item_key` fallback, so it is
+ * stripped there. URLs must be absolute HTTP(S) — protocol-relative cover URLs
+ * are promoted to `https:`, others are dropped — and `content_type` must be
+ * non-empty.
+ */
+function normalizeSaveIdentity(item: {
+  content_id: string
+  bvid: string
+  item_key: string
+  content_url: string
+  cover_url: string
+  content_type: string
+}): { content_id: string; content_url: string; cover_url: string; content_type: string } {
+  const asAbsoluteUrl = (url: string, promoteProtocolRelative: boolean): string => {
+    if (/^https?:\/\//i.test(url)) return url
+    if (promoteProtocolRelative && /^\/\//.test(url)) return `https:${url}`
+    return ''
+  }
+  const fallback = item.bvid !== '' ? item.bvid : item.item_key
+  return {
+    content_id: item.content_id !== '' ? item.content_id : fallback.split(':').pop() ?? '',
+    content_url: asAbsoluteUrl(item.content_url, false),
+    cover_url: asAbsoluteUrl(item.cover_url, true),
+    content_type: item.content_type !== '' ? item.content_type : 'video',
+  }
+}
+
 /** Small cover thumbnail with an optional platform corner label. */
 export function Thumb(props: { url: string; title: string; kind?: string; platform?: string }) {
   const media = (
@@ -245,12 +277,9 @@ function RecommendationCard({ base, item, onDismissed, onError }: RecCardProps):
       else {
         await saveItem(base, listKind, {
           source_platform: item.source_platform !== '' ? item.source_platform : 'bilibili',
-          content_id: item.content_id !== '' ? item.content_id : item.bvid,
-          content_url: item.content_url,
-          content_type: item.content_type,
+          ...normalizeSaveIdentity(item),
           title: item.title,
           author_name: item.up_name,
-          cover_url: item.cover_url,
         })
       }
       setSaved(prev => prev === null ? prev : ({ ...prev, [listKind]: !currently }))
@@ -423,11 +452,8 @@ function DelightBanner(props: { base: string; onError: (text: string) => void })
       else {
         await saveItem(base, listKind, {
           source_platform: item.source_platform !== '' ? item.source_platform : 'bilibili',
-          content_id: item.content_id !== '' ? item.content_id : item.bvid,
-          content_url: item.content_url,
-          content_type: item.content_type,
+          ...normalizeSaveIdentity(item),
           title: item.title,
-          cover_url: item.cover_url,
         })
       }
       setSaved(prev => prev === null ? prev : ({ ...prev, [listKind]: !currently }))
