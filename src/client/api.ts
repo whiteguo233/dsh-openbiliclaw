@@ -368,6 +368,67 @@ function str(value: unknown): string {
   return typeof value === 'string' ? decodeEntities(value) : ''
 }
 
+/**
+ * Normalize one remote cover URL before it is handed to the image proxy.
+ * Some source adapters still emit protocol-relative or HTTP CDN URLs; HTTPS
+ * is required here because the DSH page itself is commonly served securely.
+ */
+export function normalizeImageUrl(value: unknown): string {
+  const url = str(value).trim()
+  if (url === '') return ''
+  if (url.startsWith('//')) return `https:${url}`
+  if (/^http:\/\//i.test(url)) return `https://${url.slice('http://'.length)}`
+  return url
+}
+
+/**
+ * Build the same backend image-proxy URL used by the browser and PC Web
+ * clients. Keeping the remote URL behind the local backend avoids hotlink,
+ * referrer and CDN CORS failures (notably xhscdn.com and i.ytimg.com).
+ */
+export function imageProxyUrl(base: string, value: unknown): string {
+  const url = normalizeImageUrl(value)
+  if (url === '') return ''
+  try {
+    new URL(url)
+  } catch {
+    return ''
+  }
+  const apiBase = base.trim().replace(/\/+$/, '')
+  return apiBase === '' ? '' : `${apiBase}/api/image-proxy?url=${encodeURIComponent(url)}`
+}
+
+/** Mark cross-origin proxy images so the backend can apply its CORS policy. */
+export function imageProxyCrossOrigin(base: string): 'anonymous' | undefined {
+  if (typeof window === 'undefined') return undefined
+  try {
+    return new URL(base, window.location.href).origin === window.location.origin ? undefined : 'anonymous'
+  } catch {
+    return undefined
+  }
+}
+
+/** Return the first non-empty text field, preserving the backend's fallbacks. */
+function firstText(...values: unknown[]): string {
+  for (const value of values) {
+    const text = str(value).trim()
+    if (text !== '') return text
+  }
+  return ''
+}
+
+/** Cover fields used by current and older source payloads. */
+function coverUrl(row: Record<string, unknown>): string {
+  return normalizeImageUrl(firstText(
+    row.cover_url,
+    row.cover,
+    row.pic,
+    row.thumbnail_url,
+    row.thumbnail,
+    row.image_url,
+  ))
+}
+
 /** Defensive coercion of one recommendation row. */
 function toRecommendation(row: Record<string, unknown>): RecommendationItem {
   return {
@@ -376,7 +437,7 @@ function toRecommendation(row: Record<string, unknown>): RecommendationItem {
     item_key: str(row.item_key),
     title: str(row.title),
     up_name: str(row.up_name),
-    cover_url: str(row.cover_url),
+    cover_url: coverUrl(row),
     expression: str(row.expression),
     topic_label: str(row.topic_label),
     content_id: str(row.content_id),
@@ -406,7 +467,7 @@ function toDelight(row: Record<string, unknown>): DelightItem {
     delight_reason: str(row.delight_reason),
     delight_score: num(row.delight_score),
     delight_hook: str(row.delight_hook),
-    cover_url: str(row.cover_url),
+    cover_url: coverUrl(row),
     content_url: str(row.content_url),
     source_platform: str(row.source_platform),
     published_label: str(row.published_label),
@@ -444,7 +505,7 @@ function toSaved(row: Record<string, unknown>): SavedItem {
     content_type: str(row.content_type),
     title: str(row.title),
     author_name: str(row.author_name),
-    cover_url: str(row.cover_url),
+    cover_url: coverUrl(row),
     note: str(row.note),
     added_at: str(row.added_at),
     sync_status: str(row.sync_status),
@@ -743,7 +804,7 @@ export async function fetchContentHistory(
       content_type: str(item.content_type),
       title: str(item.title),
       author_name: str(item.author_name),
-      cover_url: str(item.cover_url),
+      cover_url: coverUrl(item),
       body_text: str(item.body_text),
       recommendation_id: item.recommendation_id === null || item.recommendation_id === undefined ? null : num(item.recommendation_id),
       occurred_at: str(item.occurred_at),

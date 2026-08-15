@@ -213,7 +213,7 @@ function SavedCard(props: {
 
   return (
     <div className={css.card}>
-      <Thumb url={item.cover_url} title={item.title} kind="video" platform={item.source_platform} />
+      <Thumb base={base} url={item.cover_url} title={item.title} kind="video" platform={item.source_platform} />
       <div className={css.cardBody}>
         <div className={css.cardTitle}>{item.title !== '' ? item.title : item.item_key}</div>
         <MetaRow platform={item.source_platform} author={item.author_name} />
@@ -600,7 +600,7 @@ function HistoryList(props: { base: string }): React.JSX.Element {
         : null}
       {items?.map(item => (
         <div className={css.card} key={item.item_key}>
-          <Thumb url={item.cover_url} title={item.title} kind={item.body_text !== '' ? 'text' : 'video'} platform={item.source_platform} />
+          <Thumb base={base} url={item.cover_url} title={item.title} kind={item.body_text !== '' ? 'text' : 'video'} platform={item.source_platform} />
           <div className={css.cardBody}>
             <div className={css.cardTitle}>{item.title !== '' ? item.title : (item.body_text !== '' ? item.body_text.slice(0, 60) : item.item_key)}</div>
             <MetaRow platform={item.source_platform} author={item.author_name} time={item.occurred_at} />

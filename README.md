@@ -40,6 +40,7 @@
 
 ### 推荐（For You）
 - **惊喜推荐 hero 大图**：整卡宽的 16:9 封面 + ✨ 角标 + 「💗 91% 匹配」分数胶囊，展开可见推荐理由、看看/喜欢/稍后看/收藏/少来点/聊一聊
+- **跨平台封面兼容**：与浏览器插件 / PC Web 统一经后端 `/api/image-proxy` 加载，归一化小红书、YouTube 等 CDN URL；代理失败时自动回退为文本或媒体占位，不留空白卡片
 - **无限滚动**：滚到底自动加载下一页；距离底部约 800px 时**提前预加载**；加载中显示底部转圈指示
 - 换一批 / 追加一批 / 刷新；卡片内嵌喜欢/不感兴趣/评论反馈；底部动态流（探测、惊喜、保存事件）
 - 未初始化时提供「开始初始化」入口，自动轮询初始化状态
@@ -150,7 +151,7 @@ cp -r <本仓库> ~/.dsh/profiles/<profile>/node_modules/@openbiliclaw/dsh-plugi
 dsh web   # 重启 DSH Web 进程，刷新页面
 ```
 
-面板内的「设置 → 通用 → 连接」可改后端地址（默认 `http://127.0.0.1:8420/api`，面板本地保存、立即生效）。
+面板内的「设置 → 通用 → 连接」可改后端地址（默认 `http://127.0.0.1:8420`，面板本地保存、立即生效；地址本身不要再附加 `/api`）。
 
 ### 配置项（cordis 行 config）
 
@@ -205,4 +206,4 @@ tsdown --env.DSH_BUILD_FACE client   # node 半 + 浏览器半（window.__Module
 
 ## English
 
-A DeepSeek Harness (DSH) client plugin for [OpenBiliClaw](https://github.com/whiteguo233/OpenBiliClaw), the local-first cross-platform content-discovery agent. It adds a left-sidebar OpenBiliClaw button that opens a right-side drawer over the DSH web GUI (the `sidebar.footer.action` + `shell.overlay` seats) with the consumer side of OpenBiliClaw — recommendations with a hero delight banner, infinite scroll with prefetch, saved/history library, Socratic dialogue with interest/avoidance probes, the user profile card, and a settings surface aligned with the browser extension — and registers 22 `openbiliclaw_*` tools plus the `openbiliclaw-adapter` skill so DSH agents can drive the same backend in a closed loop. Crawling and source management intentionally stay in the main project. Requires DSH `0.1.0-rc.6` or newer (with the matching `dsh-*` ABI and `@deepseek-ai/cordis ^4.0.1`) plus a running OpenBiliClaw backend (Agent Bridge v2, default `http://127.0.0.1:8420`). When adding the plugin to `cordis.patch.yml`, wrap the row in a top-level `insert` entry; a bare `id` row is treated as an override and skipped when it does not already exist. See the Chinese section above for install, build and configuration details.
+A DeepSeek Harness (DSH) client plugin for [OpenBiliClaw](https://github.com/whiteguo233/OpenBiliClaw), the local-first cross-platform content-discovery agent. It adds a left-sidebar OpenBiliClaw button that opens a right-side drawer over the DSH web GUI (the `sidebar.footer.action` + `shell.overlay` seats) with the consumer side of OpenBiliClaw — recommendations with a hero delight banner, infinite scroll with prefetch, saved/history library, Socratic dialogue with interest/avoidance probes, the user profile card, and a settings surface aligned with the browser extension — and registers 22 `openbiliclaw_*` tools plus the `openbiliclaw-adapter` skill so DSH agents can drive the same backend in a closed loop. Cover images use the same backend image proxy as the browser and PC Web clients, with CDN URL normalization and a local fallback for failed loads. Crawling and source management intentionally stay in the main project. Requires DSH `0.1.0-rc.6` or newer (with the matching `dsh-*` ABI and `@deepseek-ai/cordis ^4.0.1`) plus a running OpenBiliClaw backend (Agent Bridge v2, default `http://127.0.0.1:8420`). When adding the plugin to `cordis.patch.yml`, wrap the row in a top-level `insert` entry; a bare `id` row is treated as an override and skipped when it does not already exist. See the Chinese section above for install, build and configuration details.

@@ -10,7 +10,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   appendRecommendations, fetchActivityFeed, fetchDelightBatch, fetchInitStatus, fetchRuntimeStatus, fetchSavedStatus,
   fetchRecommendations, removeSaved, reportClick, reshuffleRecommendations, respondToDelight, saveItem,
-  stableId, startInit, submitFeedback, type ActivityItem, type DelightItem, type RecommendationItem,
+  imageProxyCrossOrigin, imageProxyUrl, readApiBase, stableId, startInit, submitFeedback,
+  type ActivityItem, type DelightItem, type RecommendationItem,
   type RuntimeStatus,
 } from './api.ts'
 import { ClockIcon, StarIcon } from './icons.tsx'
@@ -67,11 +68,42 @@ function normalizeSaveIdentity(item: {
   }
 }
 
+/** Image with the shared backend proxy and a deterministic local fallback. */
+function CoverImage(props: {
+  base: string
+  url: string
+  className?: string
+  alt?: string
+  loading?: 'lazy' | 'eager'
+  fallback: React.ReactNode
+  onError?: () => void
+}): React.JSX.Element {
+  const src = imageProxyUrl(props.base, props.url)
+  const [failedSource, setFailedSource] = useState('')
+  if (src === '' || failedSource === src) return <>{props.fallback}</>
+  return (
+    <img
+      className={props.className}
+      src={src}
+      alt={props.alt ?? ''}
+      loading={props.loading ?? 'lazy'}
+      decoding="async"
+      referrerPolicy="no-referrer"
+      crossOrigin={imageProxyCrossOrigin(props.base)}
+      onError={() => {
+        setFailedSource(src)
+        props.onError?.()
+      }}
+    />
+  )
+}
+
 /** Small cover thumbnail with an optional platform corner label. */
-export function Thumb(props: { url: string; title: string; kind?: string; platform?: string }) {
+export function Thumb(props: { base?: string; url: string; title: string; kind?: string; platform?: string }) {
+  const base = props.base ?? readApiBase()
   const media = (
     props.url !== ''
-      ? <img className={css.thumb} src={props.url} alt="" loading="lazy" referrerPolicy="no-referrer" />
+      ? <CoverImage base={base} url={props.url} className={css.thumb} fallback={<div className={css.thumbFallback}>{props.kind === 'text' ? '📄' : '🎬'}</div>} />
       : <div className={css.thumbFallback}>{props.kind === 'text' ? '📄' : '🎬'}</div>
   )
   if (props.platform !== undefined && props.platform !== '') {
@@ -317,7 +349,11 @@ function RecommendationCard({ base, item, onDismissed, onError }: RecCardProps):
       {/* Popup-style 16:9 cover (whole cover clickable), text-card fallback. */}
       <button type="button" className={css.recCover} onClick={open} aria-label={item.title}>
         {!isText && item.cover_url !== ''
-          ? <img src={item.cover_url} alt="" loading="lazy" referrerPolicy="no-referrer" />
+          ? <CoverImage
+              base={base}
+              url={item.cover_url}
+              fallback={<span className={css.recCoverText}>{item.title || item.body_text || '封面暂时加载失败'}</span>}
+            />
           : <span className={css.recCoverText}>{isText && item.body_text !== '' ? item.body_text : item.title}</span>}
         <span className={css.coverCorner}>{platformLabel(item.source_platform)}</span>
       </button>
@@ -392,6 +428,7 @@ function DelightBanner(props: { base: string; onError: (text: string) => void })
   const [busy, setBusy] = useState('')
   const [reaction, setReaction] = useState<{ kind: string; text: string } | null>(null)
   const [saved, setSaved] = useState<{ favorite: boolean; watch_later: boolean } | null>(null)
+  const [failedCoverKey, setFailedCoverKey] = useState('')
   const reload = useCallback(async () => {
     try {
       const items = await fetchDelightBatch(base)
@@ -486,6 +523,8 @@ function DelightBanner(props: { base: string; onError: (text: string) => void })
   if (item === undefined || item === null) return null
   const anyBusy = busy !== ''
   const isText = item.body_text !== ''
+  const coverKey = `${item.item_key}:${item.bvid}:${item.cover_url}`
+  const coverFailed = failedCoverKey === coverKey
 
   const open = (): void => {
     openItem(base, {
@@ -516,10 +555,16 @@ function DelightBanner(props: { base: string; onError: (text: string) => void })
       <button type="button" className={css.delightMain} onClick={() => setExpanded(v => !v)} aria-expanded={expanded}>
         <span className={css.delightCover}>
           {item.cover_url !== ''
-            ? <img className={css.delightHero} src={item.cover_url} alt="" loading="lazy" referrerPolicy="no-referrer" />
+            ? <CoverImage
+                base={base}
+                url={item.cover_url}
+                className={css.delightHero}
+                fallback={<span className={css.delightHeroFallback}>{isText && item.body_text !== '' ? item.body_text.slice(0, 120) : '✨'}</span>}
+                onError={() => setFailedCoverKey(coverKey)}
+              />
             : <span className={css.delightHeroFallback}>{isText && item.body_text !== '' ? item.body_text.slice(0, 120) : '✨'}</span>}
           <span className={css.delightCoverScrim} aria-hidden="true" />
-          {item.cover_url !== '' && item.delight_score > 0 ? (
+          {!coverFailed && item.cover_url !== '' && item.delight_score > 0 ? (
             <span className={css.delightScorePill}>💗 {Math.round(item.delight_score * 100)}% 匹配</span>
           ) : null}
         </span>
