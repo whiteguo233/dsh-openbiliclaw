@@ -115,6 +115,10 @@ DSH Agent（本插件注册的工具 + skill）── Agent Bridge v2 CLI ──
 
 插件要求 DSH `0.1.0-rc.6` 或更高版本；插件的 peer ABI 已与该版本的 `dsh-*` 包及 `@deepseek-ai/cordis ^4.0.1` 对齐。请不要在同一个 profile 中混用 `0.0.1` 时代的 DSH 工具包。
 
+### 通过 DSH 插件 bundle 安装
+
+本仓库声明了 `dsh.bundle`，因此可以作为完整插件包交给 `dsh plugin add` 或插件市场安装。bundle 会自动提供 `openbiliclaw` 配置行；安装后仍需按下面的配置说明，把 `workdir` 指向本地 OpenBiliClaw 主项目目录。
+
 ### 1. 界面槽位（当前 DSH 免配置）
 
 面板渲染在两个**加法槽位**上，无需改 DSH 源码：
