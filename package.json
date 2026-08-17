@@ -56,7 +56,8 @@
     "lib/index.js",
     "lib/client.js",
     "lib/client.js.map",
-    "lib/types/**/*.d.ts"
+    "lib/types/**/*.d.ts",
+    "cordis.patch.yml"
   ],
   "license": "BSD-3-Clause"
 }
