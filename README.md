@@ -119,6 +119,15 @@ DSH Agent（本插件注册的工具 + skill）── Agent Bridge v2 CLI ──
 
 本仓库声明了 `dsh.bundle`，因此可以作为完整插件包交给 `dsh plugin add` 或插件市场安装。bundle 会自动提供 `openbiliclaw` 配置行；安装后仍需按下面的配置说明，把 `workdir` 指向本地 OpenBiliClaw 主项目目录。
 
+### 通过 npm/pnpm 安装（已发布版本）
+
+```bash
+npm install @openbiliclaw/dsh-plugin
+# 或 pnpm add @openbiliclaw/dsh-plugin
+```
+
+安装后同样在 `cordis.patch.yml` 中增加 `openbiliclaw` 配置行（见下文）。
+
 ### 1. 界面槽位（当前 DSH 免配置）
 
 面板渲染在两个**加法槽位**上，无需改 DSH 源码：
