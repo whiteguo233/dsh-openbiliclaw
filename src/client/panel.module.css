@@ -3637,6 +3637,104 @@
   color: var(--obc-danger);
 }
 
+/* ── settings: diagnostics alerts (popup logging-tab parity) ─────────── */
+
+.diagAlertHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.diagAlertSummary {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--obc-text-secondary);
+  font-size: 11px;
+}
+
+.diagAlertList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.diagAlertItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border: 1px solid var(--obc-line);
+  border-radius: 10px;
+  background: var(--obc-surface-soft);
+}
+
+.diagAlertItem[data-severity='error'] {
+  border-color: rgba(239, 122, 134, 0.45);
+  background: rgba(239, 122, 134, 0.08);
+}
+
+.diagAlertItemTop {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.diagAlertBadge {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 1px 7px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.diagAlertItem[data-severity='error'] .diagAlertBadge {
+  background: rgba(239, 122, 134, 0.22);
+  color: #b3475a;
+}
+
+.diagAlertItem[data-severity='warning'] .diagAlertBadge {
+  background: rgba(246, 180, 84, 0.18);
+  color: #9a6b1f;
+}
+
+.diagAlertSource {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--obc-text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.diagAlertMessage {
+  color: var(--obc-text);
+  font-size: 11.5px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.diagAlertMeta {
+  color: var(--obc-text-muted);
+  font-size: 10.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* ── settings: LLM instance list ──────────────────────────────────────── */
 
 .llmInstanceList {
@@ -4151,6 +4249,26 @@
 .panel[data-dark='true'] .moduleRoute {
   border-color: rgba(255, 255, 255, 0.08);
   background: rgba(36, 38, 44, 0.88);
+}
+
+.panel[data-dark='true'] .diagAlertItem {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.panel[data-dark='true'] .diagAlertItem[data-severity='error'] {
+  border-color: rgba(239, 122, 134, 0.4);
+  background: rgba(239, 122, 134, 0.1);
+}
+
+.panel[data-dark='true'] .diagAlertItem[data-severity='error'] .diagAlertBadge {
+  background: rgba(239, 122, 134, 0.2);
+  color: #ffb3bd;
+}
+
+.panel[data-dark='true'] .diagAlertItem[data-severity='warning'] .diagAlertBadge {
+  background: rgba(246, 180, 84, 0.16);
+  color: #f0c477;
 }
 
 .panel[data-dark='true'] .chainBtn {

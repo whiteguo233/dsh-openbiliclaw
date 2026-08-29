@@ -1119,10 +1119,29 @@ export interface ModelDiscoveryResult {
   error: string
 }
 
+/** One diagnostics alert row (popup logging-tab parity). */
+export interface DiagnosticsAlertItem {
+  severity: string
+  category: string
+  source: string
+  code: string
+  message: string
+  count: number
+  last_seen: number
+}
+
+/** `/api/diagnostics/alerts` response (defensive). */
+export interface DiagnosticsAlertsPayload {
+  alerts: DiagnosticsAlertItem[]
+  summary: { errors: number; warnings: number }
+}
+
 /** `/api/init-status` response (defensive). */
 export interface InitStatus {
   initialized: boolean
   running: boolean
+  current_stage: number
+  total_stages: number
 }
 
 /** `/api/update-status` response (defensive). */
@@ -1230,12 +1249,46 @@ export async function applyAutostart(base: string, enabled: boolean, signal?: Ab
 export async function fetchInitStatus(base: string, signal?: AbortSignal): Promise<InitStatus> {
   const data = await requestJson(base, '/api/init-status', { timeoutMs: 45_000, signal })
   const row = typeof data === 'object' && data !== null ? data as Record<string, unknown> : {}
-  return { initialized: row.initialized === true, running: row.running === true }
+  return {
+    initialized: row.initialized === true,
+    running: row.running === true,
+    current_stage: num(row.current_stage),
+    total_stages: num(row.total_stages) || 4,
+  }
 }
 
 /** Restart initialization (rebuild profile + discovery pool). */
-export async function startInit(base: string, payload: { force?: boolean; reset_cognition?: boolean }, signal?: AbortSignal): Promise<void> {
+export async function startInit(base: string, payload: { force?: boolean; reset_cognition?: boolean; llm_concurrency?: number }, signal?: AbortSignal): Promise<void> {
   await requestJson(base, '/api/init', { method: 'POST', timeoutMs: 60_000, signal, body: payload })
+}
+
+/** Fetch recent LLM/embedding failure alerts (popup logging-tab parity). */
+export async function fetchDiagnosticsAlerts(
+  base: string,
+  limit = 50,
+  signal?: AbortSignal,
+): Promise<DiagnosticsAlertsPayload> {
+  const bounded = Math.max(1, Math.min(Math.trunc(limit), 500))
+  const data = await requestJson(base, `/api/diagnostics/alerts?limit=${bounded}`, { timeoutMs: 12_000, signal })
+  const row = typeof data === 'object' && data !== null ? data as Record<string, unknown> : {}
+  const rawAlerts = Array.isArray(row.alerts) ? row.alerts : []
+  const alerts = rawAlerts.map((item): DiagnosticsAlertItem => {
+    const alert = typeof item === 'object' && item !== null ? item as Record<string, unknown> : {}
+    return {
+      severity: str(alert.severity),
+      category: str(alert.category),
+      source: str(alert.source),
+      code: str(alert.code),
+      message: str(alert.message),
+      count: num(alert.count) || 1,
+      last_seen: num(alert.last_seen),
+    }
+  })
+  const summary = typeof row.summary === 'object' && row.summary !== null ? row.summary as Record<string, unknown> : {}
+  return {
+    alerts,
+    summary: { errors: num(summary.errors), warnings: num(summary.warnings) },
+  }
 }
 
 /** Read backend update status. */

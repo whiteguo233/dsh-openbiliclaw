@@ -4,6 +4,7 @@ export declare function platformLabel(platform: string): string;
 export declare function formatCount(value: number): string;
 /** Small cover thumbnail with an optional platform corner label. */
 export declare function Thumb(props: {
+    base?: string;
     url: string;
     title: string;
     kind?: string;

@@ -294,6 +294,20 @@ export declare function requestJson(base: string, path: string, options?: {
     timeoutMs?: number;
     signal?: AbortSignal;
 }): Promise<unknown>;
+/**
+ * Normalize one remote cover URL before it is handed to the image proxy.
+ * Some source adapters still emit protocol-relative or HTTP CDN URLs; HTTPS
+ * is required here because the DSH page itself is commonly served securely.
+ */
+export declare function normalizeImageUrl(value: unknown): string;
+/**
+ * Build the same backend image-proxy URL used by the browser and PC Web
+ * clients. Keeping the remote URL behind the local backend avoids hotlink,
+ * referrer and CDN CORS failures (notably xhscdn.com and i.ytimg.com).
+ */
+export declare function imageProxyUrl(base: string, value: unknown): string;
+/** Mark cross-origin proxy images so the backend can apply its CORS policy. */
+export declare function imageProxyCrossOrigin(base: string): 'anonymous' | undefined;
 /** GET /api/recommendations — the current recommendation snapshot. */
 export declare function fetchRecommendations(base: string, signal?: AbortSignal): Promise<RecommendationItem[]>;
 /** POST /api/recommendations/reshuffle — replace the current page. */
@@ -486,10 +500,30 @@ export interface ModelDiscoveryResult {
     reasoningEfforts: string[];
     error: string;
 }
+/** One diagnostics alert row (popup logging-tab parity). */
+export interface DiagnosticsAlertItem {
+    severity: string;
+    category: string;
+    source: string;
+    code: string;
+    message: string;
+    count: number;
+    last_seen: number;
+}
+/** `/api/diagnostics/alerts` response (defensive). */
+export interface DiagnosticsAlertsPayload {
+    alerts: DiagnosticsAlertItem[];
+    summary: {
+        errors: number;
+        warnings: number;
+    };
+}
 /** `/api/init-status` response (defensive). */
 export interface InitStatus {
     initialized: boolean;
     running: boolean;
+    current_stage: number;
+    total_stages: number;
 }
 /** `/api/update-status` response (defensive). */
 export interface UpdateStatus {
@@ -524,7 +558,10 @@ export declare function fetchInitStatus(base: string, signal?: AbortSignal): Pro
 export declare function startInit(base: string, payload: {
     force?: boolean;
     reset_cognition?: boolean;
+    llm_concurrency?: number;
 }, signal?: AbortSignal): Promise<void>;
+/** Fetch recent LLM/embedding failure alerts (popup logging-tab parity). */
+export declare function fetchDiagnosticsAlerts(base: string, limit?: number, signal?: AbortSignal): Promise<DiagnosticsAlertsPayload>;
 /** Read backend update status. */
 export declare function fetchUpdateStatus(base: string, signal?: AbortSignal): Promise<UpdateStatus>;
 /** Trigger an immediate backend update check. */

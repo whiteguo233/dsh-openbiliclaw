@@ -17,6 +17,8 @@ import {
   checkBackendUpdate,
   discoverConfigModels,
   fetchAuthStatus,
+  fetchDiagnosticsAlerts,
+  type DiagnosticsAlertItem,
   fetchAutostartStatus,
   fetchConfig,
   fetchInitStatus,
@@ -56,6 +58,7 @@ const PROVIDER_OPTIONS: Array<{ value: string; label: string }> = [
   { value: 'gemini', label: 'Gemini' },
   { value: 'deepseek', label: 'DeepSeek' },
   { value: 'openrouter', label: 'OpenRouter' },
+  { value: 'orcarouter', label: 'OrcaRouter' },
   { value: 'ollama', label: 'Ollama' },
   { value: 'openai_compatible', label: 'OpenAI-compatible' },
 ]
@@ -79,7 +82,7 @@ const EMBEDDING_FALLBACKS: Array<{ value: string; label: string }> = [
 
 const REASONING_SUGGESTIONS = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']
 /** Providers whose protocols carry a reasoning-effort field. */
-const REASONING_PROVIDERS = new Set(['openai', 'claude', 'gemini', 'deepseek', 'openrouter', 'openai_compatible'])
+const REASONING_PROVIDERS = new Set(['openai', 'claude', 'gemini', 'deepseek', 'openrouter', 'orcarouter', 'openai_compatible'])
 const PROTOCOL_PROVIDERS = new Set(['openai', 'openai_compatible'])
 
 /** Defensive helpers over the raw config object. */
@@ -249,6 +252,11 @@ interface SettingsDraft {
     mmTimeout: number
     keywordMode: string
   }
+  soul: {
+    awarenessEventBatchSize: number
+    insightNoteBatchSize: number
+    cognitionMaxTokens: number
+  }
   logging: {
     path: string
     level: string
@@ -316,7 +324,7 @@ function buildDraft(raw: Record<string, unknown>): SettingsDraft {
       instances,
       defaultChain: dedupeIds(llmRaw.default_chain),
       routes,
-      concurrency: getNum(llmRaw, 'concurrency', 4),
+      concurrency: getNum(llmRaw, 'concurrency', 3),
       timeout: getNum(llmRaw, 'timeout', 1200),
       embedding: {
         provider: getStr(embed, 'provider', 'ollama'),
@@ -370,6 +378,11 @@ function buildDraft(raw: Record<string, unknown>): SettingsDraft {
       mmQuality: getNum(disc, 'multimodal_image_quality', 72),
       mmTimeout: getNum(disc, 'multimodal_image_timeout_seconds', 6),
       keywordMode: getStr(disc, 'keyword_generation_mode', 'hybrid'),
+    },
+    soul: {
+      awarenessEventBatchSize: getNum(asDict(raw.soul), 'awareness_event_batch_size', 300),
+      insightNoteBatchSize: getNum(asDict(raw.soul), 'insight_note_batch_size', 150),
+      cognitionMaxTokens: getNum(asDict(raw.soul), 'cognition_max_tokens', 32768),
     },
     logging: {
       path: `${getStr(logging, 'directory', 'logs')}/${getStr(logging, 'filename', 'openbiliclaw.log')}`,
@@ -484,6 +497,11 @@ function buildPayload(draft: SettingsDraft, raw: Record<string, unknown>): Recor
       speculation_max_secondary_interests: draft.scheduler.speculationMaxSecondary,
       auto_update_enabled: draft.scheduler.autoUpdate,
       auto_update_check_interval_hours: draft.scheduler.autoUpdateInterval,
+    },
+    soul: {
+      awareness_event_batch_size: draft.soul.awarenessEventBatchSize,
+      insight_note_batch_size: draft.soul.insightNoteBatchSize,
+      cognition_max_tokens: draft.soul.cognitionMaxTokens,
     },
     logging: {
       level: draft.logging.level,
@@ -1097,7 +1115,9 @@ function SchedulerTab(props: { draft: SettingsDraft; patch: (fn: (d: SettingsDra
 function AdvancedTab(props: { draft: SettingsDraft; patch: (fn: (d: SettingsDraft) => SettingsDraft) => void }): React.JSX.Element {
   const { draft, patch } = props
   const d = draft.discovery
+  const soul = draft.soul
   const set = (key: string, value: number | boolean | string): void => patch(doc => ({ ...doc, discovery: { ...doc.discovery, [key]: value } }))
+  const setSoul = (key: string, value: number): void => patch(doc => ({ ...doc, soul: { ...doc.soul, [key]: value } }))
 
   return (
     <>
@@ -1128,6 +1148,12 @@ function AdvancedTab(props: { draft: SettingsDraft; patch: (fn: (d: SettingsDraf
           />
         </Field>
       </Section>
+      <Section icon="🧮" title="认知循环预算">
+        <p className={css.settingsHint}>觉察 / 洞察每轮 LLM 调用的输入批量与输出 token 上限。默认按 256K 上下文模型设计；80-100K 上下文的本地模型可调小，无需改源码。</p>
+        <Field label="觉察事件批量大小"><NumInput value={soul.awarenessEventBatchSize} onChange={v => setSoul('awarenessEventBatchSize', v)} min={10} max={900} /></Field>
+        <Field label="洞察笔记批量大小"><NumInput value={soul.insightNoteBatchSize} onChange={v => setSoul('insightNoteBatchSize', v)} min={10} max={450} /></Field>
+        <Field label="认知输出 token 上限"><NumInput value={soul.cognitionMaxTokens} onChange={v => setSoul('cognitionMaxTokens', v)} min={1024} max={128000} /></Field>
+      </Section>
     </>
   )
 }
@@ -1152,15 +1178,16 @@ function GeneralTab(props: {
   const [authPassword, setAuthPassword] = useState('')
   const [authBusy, setAuthBusy] = useState(false)
   const [autostart, setAutostart] = useState<{ loaded: boolean; enabled: boolean; busy: boolean }>({ loaded: false, enabled: false, busy: false })
-  const [init, setInit] = useState<{ loaded: boolean; initialized: boolean; running: boolean }>({ loaded: false, initialized: false, running: false })
+  const [init, setInit] = useState<{ loaded: boolean; initialized: boolean; running: boolean; currentStage: number; totalStages: number }>({ loaded: false, initialized: false, running: false, currentStage: 0, totalStages: 4 })
   const [reinitBusy, setReinitBusy] = useState(false)
   const [resetCognition, setResetCognition] = useState(false)
+  const [reinitLlmConcurrency, setReinitLlmConcurrency] = useState(3)
 
   useEffect(() => {
     let cancelled = false
     void fetchAuthStatus(base).then(status => { if (!cancelled) { setAuth({ loaded: true, enabled: status.enabled }); setAuthEnabled(status.enabled) } }).catch(() => { if (!cancelled) setAuth({ loaded: true, enabled: false }) })
     void fetchAutostartStatus(base).then(status => { if (!cancelled) setAutostart(prev => ({ ...prev, loaded: true, enabled: status.enabled })) }).catch(() => { if (!cancelled) setAutostart(prev => ({ ...prev, loaded: true })) })
-    void fetchInitStatus(base).then(status => { if (!cancelled) setInit({ loaded: true, initialized: status.initialized, running: status.running }) }).catch(() => { if (!cancelled) setInit(prev => ({ ...prev, loaded: true })) })
+    void fetchInitStatus(base).then(status => { if (!cancelled) setInit({ loaded: true, initialized: status.initialized, running: status.running, currentStage: status.current_stage, totalStages: status.total_stages || 4 }) }).catch(() => { if (!cancelled) setInit(prev => ({ ...prev, loaded: true })) })
     return () => { cancelled = true }
   }, [base])
 
@@ -1234,17 +1261,19 @@ function GeneralTab(props: {
     if (!confirmed) return
     setReinitBusy(true)
     try {
-      const payload: { force: boolean; reset_cognition?: boolean } = { force: true }
+      const payload: { force: boolean; reset_cognition?: boolean; llm_concurrency?: number } = { force: true }
       if (resetCognition) payload.reset_cognition = true
+      const concurrency = reinitLlmConcurrency
+      if (Number.isFinite(concurrency) && concurrency >= 1 && concurrency <= 16) payload.llm_concurrency = concurrency
       await startInit(base, payload)
       toast('重新初始化已开始，正在重新拉取数据并重建画像')
-      setInit(prev => ({ ...prev, running: true }))
+      setInit(prev => ({ ...prev, running: true, currentStage: 1, totalStages: prev.totalStages || 4 }))
     } catch (err) {
       toast('重新初始化没能启动：' + (err instanceof Error ? err.message : String(err)))
     } finally {
       setReinitBusy(false)
     }
-  }, [base, init, resetCognition, toast])
+  }, [base, init, reinitLlmConcurrency, resetCognition, toast])
 
   return (
     <>
@@ -1318,9 +1347,10 @@ function GeneralTab(props: {
       </Section>
       <Section icon="🧹" title="重新初始化 / 重建画像">
         <p className={css.settingsHint}>
-          {!init.loaded ? '读取初始化状态中…' : init.running ? '初始化正在进行中，请等待完成后再重新初始化。' : init.initialized ? '系统已初始化。重新初始化会重新拉取数据并重建画像，现有事件与收藏保留。' : '系统尚未初始化完成；正常流程请到「推荐」页点击开始初始化。'}
+          {!init.loaded ? '读取初始化状态中…' : init.running ? `初始化进行中（阶段 ${init.currentStage || '?'}/${init.totalStages || 4}）。请等待完成后再重新初始化。` : init.initialized ? '系统已初始化。重新初始化会重新拉取数据并重建画像，现有事件与收藏保留。' : '系统尚未初始化完成；正常流程请到「推荐」页点击开始初始化。'}
         </p>
         <CheckField label="同时清空旧认知观察与洞察（换账号 / 大改兴趣时建议）" checked={resetCognition} onChange={setResetCognition} />
+        <Field label="初始化 LLM 并发" hint="默认 3；限流严重时可降到 1-2。"><NumInput value={reinitLlmConcurrency} onChange={v => setReinitLlmConcurrency(Math.max(1, Math.min(16, v)))} min={1} max={16} /></Field>
         <div className={css.settingsActions}>
           <ActionButton label="开始重新初始化" primary disabled={reinitBusy || !init.loaded || init.running || !init.initialized} onClick={() => void reinit()} />
         </div>
@@ -1331,22 +1361,124 @@ function GeneralTab(props: {
 
 // ── 日志 tab ──────────────────────────────────────────────────────────────
 
-function LoggingTab(props: { draft: SettingsDraft; patch: (fn: (d: SettingsDraft) => SettingsDraft) => void }): React.JSX.Element {
-  const { draft, patch } = props
+/** Human-readable label for one diagnostics-alert code. */
+function describeDiagAlertCode(code: string, category: string): string {
+  const llmCodes: Record<string, string> = {
+    rate_limited: '限流 429',
+    auth_failed: '鉴权失败',
+    timeout: '请求超时',
+    bad_response: '响应异常',
+    provider_error: '请求失败',
+    all_providers_failed: '全部实例失败',
+  }
+  const embeddingCodes: Record<string, string> = {
+    breaker_open: '熔断触发',
+    provider_error: '请求失败',
+  }
+  const table = category === 'embedding' ? embeddingCodes : llmCodes
+  return table[code] || code || '未知异常'
+}
+
+/** Compact HH:MM:SS from epoch seconds (popup parity). */
+function formatDiagAlertTime(epochSeconds: number): string {
+  const ts = Number(epochSeconds || 0) * 1000
+  if (!Number.isFinite(ts) || ts <= 0) return ''
+  try {
+    return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  } catch {
+    return ''
+  }
+}
+
+function LoggingTab(props: { draft: SettingsDraft; patch: (fn: (d: SettingsDraft) => SettingsDraft) => void; base: string; active: boolean }): React.JSX.Element {
+  const { draft, patch, base, active } = props
   const l = draft.logging
   const set = (key: string, value: number | string): void => patch(d => ({ ...d, logging: { ...d.logging, [key]: value } }))
   const levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR'].map(v => ({ value: v, label: v }))
+  const [diag, setDiag] = useState<{ alerts: DiagnosticsAlertItem[]; errors: number; warnings: number; loaded: boolean }>({ alerts: [], errors: 0, warnings: 0, loaded: false })
+  const [diagBusy, setDiagBusy] = useState(false)
+
+  const refreshDiag = useCallback(async () => {
+    setDiagBusy(true)
+    try {
+      const payload = await fetchDiagnosticsAlerts(base)
+      setDiag({ alerts: payload.alerts, errors: payload.summary.errors, warnings: payload.summary.warnings, loaded: true })
+    } catch {
+      setDiag(prev => ({ ...prev, loaded: true }))
+    } finally {
+      setDiagBusy(false)
+    }
+  }, [base])
+
+  useEffect(() => {
+    if (!active) return
+    let cancelled = false
+    const load = async (): Promise<void> => {
+      try {
+        const payload = await fetchDiagnosticsAlerts(base)
+        if (!cancelled) setDiag({ alerts: payload.alerts, errors: payload.summary.errors, warnings: payload.summary.warnings, loaded: true })
+      } catch {
+        if (!cancelled) setDiag(prev => ({ ...prev, loaded: true }))
+      }
+    }
+    void load()
+    const timer = setInterval(() => {
+      if (!document.hidden) void load()
+    }, 15_000)
+    return () => { cancelled = true; clearInterval(timer) }
+  }, [active, base])
+
+  const summaryText = !diag.loaded
+    ? '读取异常报警中…'
+    : diag.alerts.length > 0
+      ? `${diag.alerts.length} 条记录 · ${diag.errors} 错误 / ${diag.warnings} 警告`
+      : '暂无异常报警'
+  const metaLabel = (alert: DiagnosticsAlertItem): string => [
+    describeDiagAlertCode(alert.code, alert.category),
+    alert.count > 1 ? `×${alert.count}` : '',
+    formatDiagAlertTime(alert.last_seen),
+  ].filter(Boolean).join(' · ')
+
   return (
-    <Section icon="📄" title="日志">
-      <Field label="控制台级别"><SelectInput value={l.level} options={levels} onChange={v => set('level', v)} /></Field>
-      <Field label="文件级别"><SelectInput value={l.fileLevel} options={levels} onChange={v => set('fileLevel', v)} /></Field>
-      <Field label="完整日志路径" hint="目录与文件名（例如 logs/openbiliclaw.log）。"><TextInput value={l.path} onChange={v => set('path', v)} placeholder="logs/openbiliclaw.log" /></Field>
-      <Field label="单日志文件上限 MB"><NumInput value={l.maxFile} onChange={v => set('maxFile', v)} min={0} /></Field>
-      <Field label="日志备份份数"><NumInput value={l.backups} onChange={v => set('backups', v)} min={0} /></Field>
-      <Field label="日志目录预算 MB"><NumInput value={l.budget} onChange={v => set('budget', v)} min={0} /></Field>
-      <Field label="单个非托管日志截断 MB"><NumInput value={l.truncate} onChange={v => set('truncate', v)} min={0} /></Field>
-      <Field label="非托管日志保留天数"><NumInput value={l.maxAge} onChange={v => set('maxAge', v)} min={0} /></Field>
-    </Section>
+    <>
+      <Section icon="📄" title="日志">
+        <Field label="控制台级别"><SelectInput value={l.level} options={levels} onChange={v => set('level', v)} /></Field>
+        <Field label="文件级别"><SelectInput value={l.fileLevel} options={levels} onChange={v => set('fileLevel', v)} /></Field>
+        <Field label="完整日志路径" hint="目录与文件名（例如 logs/openbiliclaw.log）。"><TextInput value={l.path} onChange={v => set('path', v)} placeholder="logs/openbiliclaw.log" /></Field>
+        <Field label="单日志文件上限 MB"><NumInput value={l.maxFile} onChange={v => set('maxFile', v)} min={0} /></Field>
+        <Field label="日志备份份数"><NumInput value={l.backups} onChange={v => set('backups', v)} min={0} /></Field>
+        <Field label="日志目录预算 MB"><NumInput value={l.budget} onChange={v => set('budget', v)} min={0} /></Field>
+        <Field label="单个非托管日志截断 MB"><NumInput value={l.truncate} onChange={v => set('truncate', v)} min={0} /></Field>
+        <Field label="非托管日志保留天数"><NumInput value={l.maxAge} onChange={v => set('maxAge', v)} min={0} /></Field>
+      </Section>
+      <Section icon="🚨" title="异常报警">
+        <div className={css.diagAlertHead}>
+          <span className={css.diagAlertSummary} aria-live="polite">{summaryText}</span>
+          <ActionButton label="刷新" disabled={diagBusy} onClick={() => void refreshDiag()} />
+        </div>
+        {diag.alerts.length === 0 ? (
+          <p className={css.settingsHint}>暂无异常报警，LLM / Embedding 请求异常会显示在这里。</p>
+        ) : (
+          <ul className={css.diagAlertList}>
+            {diag.alerts.map((alert, index) => {
+              const severity = alert.severity === 'error' ? 'error' : 'warning'
+              const categoryLabel = alert.category === 'embedding' ? 'Embedding' : 'LLM'
+              const source = alert.source.trim()
+              return (
+                <li key={`${alert.code}-${alert.source}-${alert.last_seen}-${index}`} className={css.diagAlertItem} data-severity={severity}>
+                  <div className={css.diagAlertItemTop}>
+                    <span className={css.diagAlertBadge}>{severity === 'error' ? '错误' : '警告'}</span>
+                    <span className={css.diagAlertSource}>{source !== '' ? `${categoryLabel} · ${source}` : categoryLabel}</span>
+                  </div>
+                  <div className={css.diagAlertMessage}>{alert.message}</div>
+                  {metaLabel(alert) !== '' ? <div className={css.diagAlertMeta}>{metaLabel(alert)}</div> : null}
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </Section>
+    </>
   )
 }
 
@@ -1432,7 +1564,7 @@ export function SettingsOverlay(props: { base: string; onBaseChange: (base: stri
               <div hidden={tab !== 'scheduler'}><SchedulerTab draft={draft} patch={patch} base={base} toast={setToast} /></div>
               <div hidden={tab !== 'advanced'}><AdvancedTab draft={draft} patch={patch} /></div>
               <div hidden={tab !== 'general'}><GeneralTab draft={draft} patch={patch} base={base} onBaseChange={onBaseChange} toast={setToast} /></div>
-              <div hidden={tab !== 'logging'}><LoggingTab draft={draft} patch={patch} /></div>
+              <div hidden={tab !== 'logging'}><LoggingTab draft={draft} patch={patch} base={base} active={tab === 'logging'} /></div>
               <div className={css.settingsSavebar}>
                 <span className={css.settingsSavebarMsg} aria-live="polite">{dirty ? '有未保存的修改' : '没有未保存的修改'}</span>
                 <ActionButton label="保存配置" primary disabled={!dirty || saving} onClick={() => void saveAll()} />
