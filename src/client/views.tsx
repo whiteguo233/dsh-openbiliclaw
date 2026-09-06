@@ -708,7 +708,7 @@ function InitPrompt(props: { base: string; onDone: () => void; onError: (text: s
           setStatus('初始化尚未完成；可稍后刷新，或到 设置-通用 重新初始化。')
           return
         }
-        setStatus('初始化进行中，正在拉取数据并生成画像…')
+        setStatus(init.stage_note ? `初始化进行中 · ${init.stage_note}` : '初始化进行中，正在拉取数据并生成画像…')
       }
       setStatus('初始化仍在后台进行，请稍后刷新查看。')
     } catch (err) {

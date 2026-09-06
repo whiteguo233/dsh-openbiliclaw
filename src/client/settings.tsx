@@ -947,7 +947,7 @@ function ModelsTab(props: { draft: SettingsDraft; patch: (fn: (d: SettingsDraft)
         <p className={css.settingsHint}>每项可覆盖默认调用链：取消继承后，为对应模块单独选择实例链。</p>
       </Section>
       <Section icon="⚙️" title="请求参数">
-        <Field label="LLM 并发数"><NumInput value={llm.concurrency} onChange={v => patchLlms(l => ({ ...l, concurrency: v }))} min={1} max={16} /></Field>
+        <Field label="LLM 并发数"><NumInput value={llm.concurrency} onChange={v => patchLlms(l => ({ ...l, concurrency: v }))} min={1} /></Field>
         <Field label="单实例超时（秒）"><NumInput value={llm.timeout} onChange={v => patchLlms(l => ({ ...l, timeout: v }))} min={10} max={1200} step={10} /></Field>
       </Section>
       <Section icon="🔍" title="Embedding 模型">
@@ -1178,16 +1178,17 @@ function GeneralTab(props: {
   const [authPassword, setAuthPassword] = useState('')
   const [authBusy, setAuthBusy] = useState(false)
   const [autostart, setAutostart] = useState<{ loaded: boolean; enabled: boolean; busy: boolean }>({ loaded: false, enabled: false, busy: false })
-  const [init, setInit] = useState<{ loaded: boolean; initialized: boolean; running: boolean; currentStage: number; totalStages: number }>({ loaded: false, initialized: false, running: false, currentStage: 0, totalStages: 4 })
+  const [init, setInit] = useState<{ loaded: boolean; initialized: boolean; running: boolean; currentStage: number; totalStages: number; stageNote?: string }>({ loaded: false, initialized: false, running: false, currentStage: 0, totalStages: 4 })
   const [reinitBusy, setReinitBusy] = useState(false)
   const [resetCognition, setResetCognition] = useState(false)
   const [reinitLlmConcurrency, setReinitLlmConcurrency] = useState(3)
+  const [reinitInitTimeoutMinutes, setReinitInitTimeoutMinutes] = useState(60)
 
   useEffect(() => {
     let cancelled = false
     void fetchAuthStatus(base).then(status => { if (!cancelled) { setAuth({ loaded: true, enabled: status.enabled }); setAuthEnabled(status.enabled) } }).catch(() => { if (!cancelled) setAuth({ loaded: true, enabled: false }) })
     void fetchAutostartStatus(base).then(status => { if (!cancelled) setAutostart(prev => ({ ...prev, loaded: true, enabled: status.enabled })) }).catch(() => { if (!cancelled) setAutostart(prev => ({ ...prev, loaded: true })) })
-    void fetchInitStatus(base).then(status => { if (!cancelled) setInit({ loaded: true, initialized: status.initialized, running: status.running, currentStage: status.current_stage, totalStages: status.total_stages || 4 }) }).catch(() => { if (!cancelled) setInit(prev => ({ ...prev, loaded: true })) })
+    void fetchInitStatus(base).then(status => { if (!cancelled) setInit({ loaded: true, initialized: status.initialized, running: status.running, currentStage: status.current_stage, totalStages: status.total_stages || 4, stageNote: status.stage_note }) }).catch(() => { if (!cancelled) setInit(prev => ({ ...prev, loaded: true })) })
     return () => { cancelled = true }
   }, [base])
 
@@ -1261,10 +1262,12 @@ function GeneralTab(props: {
     if (!confirmed) return
     setReinitBusy(true)
     try {
-      const payload: { force: boolean; reset_cognition?: boolean; llm_concurrency?: number } = { force: true }
+      const payload: { force: boolean; reset_cognition?: boolean; llm_concurrency?: number; init_timeout_minutes?: number } = { force: true }
       if (resetCognition) payload.reset_cognition = true
       const concurrency = reinitLlmConcurrency
-      if (Number.isFinite(concurrency) && concurrency >= 1 && concurrency <= 16) payload.llm_concurrency = concurrency
+      if (Number.isFinite(concurrency) && concurrency >= 1) payload.llm_concurrency = concurrency
+      const timeoutMinutes = reinitInitTimeoutMinutes
+      if (Number.isFinite(timeoutMinutes) && timeoutMinutes >= 1 && timeoutMinutes <= 1440) payload.init_timeout_minutes = timeoutMinutes
       await startInit(base, payload)
       toast('重新初始化已开始，正在重新拉取数据并重建画像')
       setInit(prev => ({ ...prev, running: true, currentStage: 1, totalStages: prev.totalStages || 4 }))
@@ -1273,7 +1276,7 @@ function GeneralTab(props: {
     } finally {
       setReinitBusy(false)
     }
-  }, [base, init, reinitLlmConcurrency, resetCognition, toast])
+  }, [base, init, reinitLlmConcurrency, reinitInitTimeoutMinutes, resetCognition, toast])
 
   return (
     <>
@@ -1347,10 +1350,11 @@ function GeneralTab(props: {
       </Section>
       <Section icon="🧹" title="重新初始化 / 重建画像">
         <p className={css.settingsHint}>
-          {!init.loaded ? '读取初始化状态中…' : init.running ? `初始化进行中（阶段 ${init.currentStage || '?'}/${init.totalStages || 4}）。请等待完成后再重新初始化。` : init.initialized ? '系统已初始化。重新初始化会重新拉取数据并重建画像，现有事件与收藏保留。' : '系统尚未初始化完成；正常流程请到「推荐」页点击开始初始化。'}
+          {!init.loaded ? '读取初始化状态中…' : init.running ? `初始化进行中（阶段 ${init.currentStage || '?'}/${init.totalStages || 4}）${init.stageNote ? ` · ${init.stageNote}` : ''}。请等待完成后再重新初始化。` : init.initialized ? '系统已初始化。重新初始化会重新拉取数据并重建画像，现有事件与收藏保留。' : '系统尚未初始化完成；正常流程请到「推荐」页点击开始初始化。'}
         </p>
         <CheckField label="同时清空旧认知观察与洞察（换账号 / 大改兴趣时建议）" checked={resetCognition} onChange={setResetCognition} />
-        <Field label="初始化 LLM 并发" hint="默认 3；限流严重时可降到 1-2。"><NumInput value={reinitLlmConcurrency} onChange={v => setReinitLlmConcurrency(Math.max(1, Math.min(16, v)))} min={1} max={16} /></Field>
+        <Field label="初始化 LLM 并发" hint="默认 3；限流严重时可降到 1-2。"><NumInput value={reinitLlmConcurrency} onChange={v => setReinitLlmConcurrency(Math.max(1, v))} min={1} /></Field>
+        <Field label="初始化总超时（分钟）" hint="默认 60；网络或模型很慢时可调大。"><NumInput value={reinitInitTimeoutMinutes} onChange={v => setReinitInitTimeoutMinutes(Math.max(1, Math.min(1440, v)))} min={1} max={1440} /></Field>
         <div className={css.settingsActions}>
           <ActionButton label="开始重新初始化" primary disabled={reinitBusy || !init.loaded || init.running || !init.initialized} onClick={() => void reinit()} />
         </div>

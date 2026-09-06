@@ -1142,6 +1142,8 @@ export interface InitStatus {
   running: boolean
   current_stage: number
   total_stages: number
+  /** Current running stage progress note, e.g. "全平台共 123 条事件 · 已完成 0/4 批". */
+  stage_note?: string
 }
 
 /** `/api/update-status` response (defensive). */
@@ -1249,16 +1251,22 @@ export async function applyAutostart(base: string, enabled: boolean, signal?: Ab
 export async function fetchInitStatus(base: string, signal?: AbortSignal): Promise<InitStatus> {
   const data = await requestJson(base, '/api/init-status', { timeoutMs: 45_000, signal })
   const row = typeof data === 'object' && data !== null ? data as Record<string, unknown> : {}
+  const stages = Array.isArray(row.stages) ? row.stages as Array<Record<string, unknown>> : []
+  const currentStage = stages.find((stage) => num(stage.n) === num(row.current_stage))
+  const progress = currentStage && typeof currentStage.progress === 'object' && currentStage.progress !== null
+    ? currentStage.progress as Record<string, unknown>
+    : null
   return {
     initialized: row.initialized === true,
     running: row.running === true,
     current_stage: num(row.current_stage),
     total_stages: num(row.total_stages) || 4,
+    stage_note: progress && typeof progress.note === 'string' ? progress.note : undefined,
   }
 }
 
 /** Restart initialization (rebuild profile + discovery pool). */
-export async function startInit(base: string, payload: { force?: boolean; reset_cognition?: boolean; llm_concurrency?: number }, signal?: AbortSignal): Promise<void> {
+export async function startInit(base: string, payload: { force?: boolean; reset_cognition?: boolean; llm_concurrency?: number; init_timeout_minutes?: number }, signal?: AbortSignal): Promise<void> {
   await requestJson(base, '/api/init', { method: 'POST', timeoutMs: 60_000, signal, body: payload })
 }
 
