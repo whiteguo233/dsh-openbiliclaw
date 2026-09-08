@@ -218,7 +218,7 @@ function CardTurnBlock(props: {
 export function ChatView(props: { base: string }): React.JSX.Element {
   const { base } = props
   const [turns, setTurns] = useState<ChatTurn[] | null>(null)
-  const [confirmations, setConfirmations] = useState<{ count: number; items: PendingConfirmation[] } | null>(null)
+  const [confirmations, setConfirmations] = useState<{ count: number; total: number; items: PendingConfirmation[] } | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [error, setError] = useState('')
   const [draft, setDraft] = useState('')
@@ -327,7 +327,7 @@ export function ChatView(props: { base: string }): React.JSX.Element {
         <div className={css.confirmPanel}>
           <button type="button" className={css.confirmToggle} onClick={() => setConfirmOpen(open => !open)}>
             待聊确认
-            <span className={css.confirmCount}>{confirmations.items.length}</span>
+            <span className={css.confirmCount}>{confirmations.total || confirmations.items.length}</span>
           </button>
           {confirmOpen
             ? confirmations.items.map(item => (

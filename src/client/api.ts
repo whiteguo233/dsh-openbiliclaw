@@ -742,12 +742,15 @@ export async function fetchChatTurn(base: string, turnId: string, signal?: Abort
 }
 
 /** GET /api/chat/pending-confirmations — hypotheses/confusions waiting for the user. */
-export async function fetchPendingConfirmations(base: string, signal?: AbortSignal): Promise<{ count: number; items: PendingConfirmation[] }> {
+export async function fetchPendingConfirmations(base: string, signal?: AbortSignal): Promise<{ count: number; total: number; items: PendingConfirmation[] }> {
   const data = await requestJson(base, '/api/chat/pending-confirmations', { timeoutMs: 10_000, signal })
   const row = typeof data === 'object' && data !== null ? data as Record<string, unknown> : {}
   const items = Array.isArray(row.items) ? row.items as Array<Record<string, unknown>> : []
+  const count = num(row.count) || items.length
+  const total = num(row.total) || count
   return {
-    count: num(row.count),
+    count,
+    total,
     items: items.map(item => ({
       ref: str(item.ref),
       kind: str(item.kind),
