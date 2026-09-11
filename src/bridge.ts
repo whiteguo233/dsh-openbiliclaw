@@ -8,7 +8,7 @@
  * rules: parse JSON, surface errors, stop.
  * @module @openbiliclaw/dsh-plugin
  */
-import type { JsonValue } from '@deepseek-ai/dsh-session'
+import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 
 /** Resolved plugin config (defaults applied in the plugin entry). */
 export interface BridgeConfig {

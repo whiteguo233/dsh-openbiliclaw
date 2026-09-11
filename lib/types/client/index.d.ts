@@ -14,7 +14,7 @@
  * face (close + theme) is passed by the DOM mount, not a slot inject.
  * @module @openbiliclaw/dsh-plugin
  */
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client';
+import type { Context as ClientContext } from '@deepseek-ai/cordis';
 export type { OpenBiliClawPanelProps, OpenBiliClawInjected } from './OpenBiliClawPanel.tsx';
 /** Required services: the slot registry (trigger button) and the shell theme. */
 export declare const inject: string[];

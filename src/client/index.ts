@@ -14,9 +14,10 @@
  * face (close + theme) is passed by the DOM mount, not a slot inject.
  * @module @openbiliclaw/dsh-plugin
  */
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import type { Context as ClientContext } from '@deepseek-ai/cordis'
 // Type-only: pulls ui-sidebar's SlotMap merge (`sidebar.footer.action`) and the
 // theme plugin's Context merge (ctx.theme) into this program.
+import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-ui-theme/client'
 import { createPanelLayoutStore } from './store.ts'
