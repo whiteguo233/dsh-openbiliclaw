@@ -208,6 +208,10 @@ npm test           # 构建后跑 ABI 冒烟测试（22 个工具 + adapter skil
 - 主项目：[OpenBiliClaw](https://github.com/whiteguo233/OpenBiliClaw) · [项目主页](https://whiteguo233.github.io/OpenBiliClaw/)
 - DSH：[DeepSeek Harness](https://github.com/deepseek-ai/DeepSeek-Harness)
 
+## 变更记录
+
+按版本记录见 [CHANGELOG.md](CHANGELOG.md)。
+
 ## License
 
 [BSD-3-Clause](LICENSE)
