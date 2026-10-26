@@ -405,6 +405,7 @@ export declare function fetchChatTurn(base: string, turnId: string, signal?: Abo
 /** GET /api/chat/pending-confirmations — hypotheses/confusions waiting for the user. */
 export declare function fetchPendingConfirmations(base: string, signal?: AbortSignal): Promise<{
     count: number;
+    total: number;
     items: PendingConfirmation[];
 }>;
 /** POST /api/chat/pending-confirmations/{ref}/open — turn a confirmation into a chat turn. */
@@ -524,6 +525,8 @@ export interface InitStatus {
     running: boolean;
     current_stage: number;
     total_stages: number;
+    /** Current running stage progress note, e.g. "全平台共 123 条事件 · 已完成 0/4 批". */
+    stage_note?: string;
 }
 /** `/api/update-status` response (defensive). */
 export interface UpdateStatus {
@@ -559,6 +562,7 @@ export declare function startInit(base: string, payload: {
     force?: boolean;
     reset_cognition?: boolean;
     llm_concurrency?: number;
+    init_timeout_minutes?: number;
 }, signal?: AbortSignal): Promise<void>;
 /** Fetch recent LLM/embedding failure alerts (popup logging-tab parity). */
 export declare function fetchDiagnosticsAlerts(base: string, limit?: number, signal?: AbortSignal): Promise<DiagnosticsAlertsPayload>;

@@ -89,21 +89,21 @@
 │              OpenBiliClaw 后端（主项目，同一份 config.toml / SQLite / 画像）│
 └────────────────────────────────────────────────────────────────────────┘
                               ▲
-DSH Agent（本插件注册的工具 + skill）── Agent Bridge v2 CLI ──┘
+DSH Agent（本插件注册的工具 + skill）── /api/agent-bridge（HTTP）──┘
 ```
 
 - 面板与 Agent 工具走**同一套后端状态**：面板里收藏的，Agent 工具立刻看得到；Agent 代答的探测，面板同步生效
-- Agent Bridge 要求后端开启 Agent Bridge v2（`python -m openbiliclaw.integrations.openclaw.cli <command>`），插件默认通过 `<workdir>/.venv/bin/python` 调用
+- Agent Bridge 要求后端开启 Agent Bridge v2（serve-api 暴露 `POST /api/agent-bridge`）；插件直接 HTTP 调用该端点，不再 shell 出 Python CLI
 - 插件注册的 skill 读取 `<workdir>/skills/openbiliclaw-adapter/SKILL.md`（本仓库 `skills/openbiliclaw-adapter/SKILL.md` 附了同一份副本，方便对照）
 
 ## 插件组成
 
 | 部分 | 说明 |
 |---|---|
-| `src/index.ts` + `src/tools.ts` | node 半：22 个 `openbiliclaw_*` 工具（bridge CLI，经 `ctx.shell` 执行器——新版 DSH 中 `bash` 更名为 `shell`）+ 注册 adapter skill |
+| `src/index.ts` + `src/tools.ts` | node 半：22 个 `openbiliclaw_*` 工具（经 serve-api 的 `/api/agent-bridge` HTTP 调用后端，无需 shell 执行器）+ 注册 adapter skill |
 | `src/skill.ts` | 解析 SKILL.md frontmatter 并注册为 DSH skill |
-| `src/bridge.ts` | Agent Bridge v2 CLI 调用封装（超时 / 输出上限） |
-| `src/client/*` | browser 半：左侧栏按钮（`sidebar.footer.action`）+ 右侧抽屉（`shell.overlay`）面板（React），含推荐/内容库/对话/画像/设置/消息抽屉、WebSocket 实时流、深色模式 |
+| `src/bridge.ts` | Agent Bridge v2 HTTP 调用封装（超时 / 错误归一化） |
+| `src/client/*` | browser 半：左侧栏按钮（`sidebar.footer.action`）+ 右侧面板列（DOM 挂载进帧网格，React），含推荐/内容库/对话/画像/设置/消息抽屉、WebSocket 实时流、深色模式 |
 | `lib/` | 构建产物（`lib/index.js` node 半 + `lib/client.js` 浏览器半），可直接安装 |
 
 ## 安装
@@ -113,42 +113,40 @@ DSH Agent（本插件注册的工具 + skill）── Agent Bridge v2 CLI ──
 1. 一个可用的 [DeepSeek Harness](https://github.com/deepseek-ai/DeepSeek-Harness) 部署（含 Web GUI）
 2. 一个运行中的 OpenBiliClaw 后端（主项目，开启 Agent Bridge v2，默认监听 127.0.0.1:8420）
 
-插件要求 DSH `0.1.5-rc.1` 或更高版本；插件的 peer ABI 已与该版本的 `dsh-*` 包及 `@deepseek-ai/cordis ^4.0.2` 对齐。请不要在同一个 profile 中混用旧版（`0.0.1` / `0.1.x` 之前）的 DSH 工具包。
+插件要求 DSH `0.2.1-rc.2` 或更高的 `0.2.x`（`package.json` 的 `engines.dsh` 是唯一兼容声明）；peer ABI 与 0.2.1 的 `dsh-*` 包及 `@deepseek-ai/cordis ~4.0.5` 对齐。DSH 0.2 会在装载时校验插件的 dsh 版本要求，不匹配的插件会被整包跳过并在启动日志打印 `dsh: skipping profile bundle ...`。
 
 ### 通过 DSH 插件 bundle 安装
 
 本仓库声明了 `dsh.bundle`，因此可以作为完整插件包交给 `dsh plugin add` 或插件市场安装。bundle 会自动提供 `openbiliclaw` 配置行；安装后仍需按下面的配置说明，把 `workdir` 指向本地 OpenBiliClaw 主项目目录。
 
-### 通过 npm/pnpm 安装（已发布版本）
+### 通过 GitHub 标签安装
 
 ```bash
-npm install @openbiliclaw/dsh-plugin
-# 或 pnpm add @openbiliclaw/dsh-plugin
+dsh plugin --profile web add 'github:whiteguo233/dsh-openbiliclaw#v0.5.0'
+# 之后把 @openbiliclaw/dsh-plugin 加进该 profile package.json 的 dsh.profile.bundles
 ```
 
-安装后同样在 `cordis.patch.yml` 中增加 `openbiliclaw` 配置行（见下文）。
+`dsh plugin` 只是 pnpm 的转发器：装完包还要在 `<profile>/package.json` 的 `dsh.profile.bundles` 里登记包名，bundle 的 `cordis.patch.yml` 才会被应用。
 
-### 1. 界面槽位（当前 DSH 免配置）
+### 1. 界面挂载（免配置）
 
-面板渲染在两个**加法槽位**上，无需改 DSH 源码：
+无需改 DSH 源码，插件自己完成两处挂载：
 
-- **左侧按钮**：`sidebar.footer.action`（侧边栏底部、设置旁的附加动作）
-- **右侧抽屉**：`shell.overlay`（帧级浮层，滑出在详情/文件/变更面板之上，不占用任何列）
-
-两个槽位都是官方 DSH 自带的 `list` 槽（当前官方 DSH 已移除旧的 `aside` 列），此步直接跳过。
+- **左侧按钮**：注册到官方 `sidebar.footer.action` 加法槽（侧边栏底部、设置旁的附加动作）
+- **右侧面板**：DSH 0.2 的帧网格没有 aside 列，插件在帧上追加一条显式 `grid-row: 1 / grid-column: 4` 的列，并把 `grid-template-columns` 重写成「壳层轨道 + 面板宽度」，所以打开面板是**挤开中间内容**而不是浮层覆盖；面板收起时该轨道宽度为 0。
 
 ### 2. 安装插件包
 
 把本仓库放进 web profile 的依赖目录并声明插件行：
 
 ```bash
-cp -r <本仓库> ~/.dsh/profiles/<profile>/node_modules/@openbiliclaw/dsh-plugin
+dsh plugin --profile <profile> add 'github:whiteguo233/dsh-openbiliclaw#v0.5.0'
 ```
 
 在 `~/.dsh/profiles/<profile>/cordis.patch.yml` 增加：
 
 ```yaml
-# DSH 0.1.5-rc.1+: 新增配置行必须放在 insert 下
+# DSH 0.2+: 新增配置行必须放在 insert 下
 - insert:
     - id: openbiliclaw
       name: '@openbiliclaw/dsh-plugin'
@@ -170,22 +168,22 @@ dsh web   # 重启 DSH Web 进程，刷新页面
 
 | 键 | 默认 | 说明 |
 |---|---|---|
-| `workdir` | （必填） | OpenBiliClaw 后端项目根目录；bridge CLI 与 SKILL.md 都从这里解析 |
-| `pythonBin` | `<workdir>/.venv/bin/python` | 用于调用 bridge CLI 的 Python |
-| `skillPath` | `<workdir>/skills/openbiliclaw-adapter/SKILL.md` | adapter skill 文件 |
-| `timeoutMs` | `300000` | 单次 CLI 调用超时 |
-| `stdoutMaxBytes` | `2000000` | CLI 输出上限 |
+| `apiUrl` | `http://127.0.0.1:8420` | 运行中的 OpenBiliClaw serve-api（Agent Bridge v2 端点） |
+| `workdir` | 插件作者的本地 checkout | OpenBiliClaw 后端项目根目录；`skillPath` 未配时由它推导，**建议显式配置** |
+| `skillPath` | `<workdir>/skills/openbiliclaw-adapter/SKILL.md` | adapter skill 文件；读不到时只告警，不阻断激活 |
+| `timeoutMs` | `300000` | 单次 bridge 调用超时 |
 
 ## 构建
 
-构建需要 DSH 源码 checkout（类型与打包 preset 都从那里解析；本仓库不是 pnpm workspace 成员）：
+插件自带完整的独立构建链，不再依赖 DSH 源码 checkout：`@deepseek-ai/dsh-*` 的类型从 npm 安装在 `devDependencies` 里，浏览器半由本仓库的 `tsdown.config.ts` 直接产出 DSH 的闭包模块格式。
 
 ```bash
-tsc -p tsconfig.json                 # 先产出 lib/types
-tsdown --env.DSH_BUILD_FACE client   # node 半 + 浏览器半（window.__ModuleLoader__ 闭包）
+npm install        # devDependencies（0.2.1-rc.2 类型包 + tsdown + lightningcss）
+npm run build      # tsc -> lib/types，tsdown -> lib/index.js + lib/client.js
+npm test           # 构建后跑 ABI 冒烟测试（22 个工具 + adapter skill）
 ```
 
-`tsdown.config.ts` 引用了 DSH checkout 的 `packages/client/tsdown.client.ts`（`clientBundle` preset），首次构建前把该路径改成你的 checkout。
+`lib/client.js` 的输出契约：`window.__ModuleLoader__.load({ id, factory: (require) => ... })`，只把 React 平台模块留在 `require` 里，其余全部内联；CSS Modules 经 lightningcss 编译并注入 `<style data-plugin>` 标签。
 
 ## Agent 侧工具一览
 
@@ -219,4 +217,4 @@ tsdown --env.DSH_BUILD_FACE client   # node 半 + 浏览器半（window.__Module
 
 ## English
 
-A DeepSeek Harness (DSH) client plugin for [OpenBiliClaw](https://github.com/whiteguo233/OpenBiliClaw), the local-first cross-platform content-discovery agent. It adds a left-sidebar OpenBiliClaw button that opens a right-side drawer over the DSH web GUI (the `sidebar.footer.action` + `shell.overlay` seats) with the consumer side of OpenBiliClaw — recommendations with a hero delight banner, infinite scroll with prefetch, saved/history library, Socratic dialogue with interest/avoidance probes, the user profile card, and a settings surface aligned with the browser extension — and registers 22 `openbiliclaw_*` tools plus the `openbiliclaw-adapter` skill so DSH agents can drive the same backend in a closed loop. Cover images use the same backend image proxy as the browser and PC Web clients, with CDN URL normalization and a local fallback for failed loads. Crawling and source management intentionally stay in the main project. Requires DSH `0.1.5-rc.1` or newer (with the matching `dsh-*` ABI and `@deepseek-ai/cordis ^4.0.2`) plus a running OpenBiliClaw backend (Agent Bridge v2, default `http://127.0.0.1:8420`). When adding the plugin to `cordis.patch.yml`, wrap the row in a top-level `insert` entry; a bare `id` row is treated as an override and skipped when it does not already exist. See the Chinese section above for install, build and configuration details.
+A DeepSeek Harness (DSH) client plugin for [OpenBiliClaw](https://github.com/whiteguo233/OpenBiliClaw), the local-first cross-platform content-discovery agent. It adds a left-sidebar OpenBiliClaw button that opens a right-side panel on the DSH web GUI (the `sidebar.footer.action` seat plus a DOM-mounted frame column) with the consumer side of OpenBiliClaw — recommendations with a hero delight banner, infinite scroll with prefetch, saved/history library, Socratic dialogue with interest/avoidance probes, the user profile card, and a settings surface aligned with the browser extension — and registers 22 `openbiliclaw_*` tools plus the `openbiliclaw-adapter` skill so DSH agents can drive the same backend in a closed loop. Cover images use the same backend image proxy as the browser and PC Web clients, with CDN URL normalization and a local fallback for failed loads. Crawling and source management intentionally stay in the main project. Requires DSH `0.2.1-rc.2` or newer on the 0.2 line (declared once in `engines.dsh`; peers align with `@deepseek-ai/cordis ~4.0.5`) plus a running OpenBiliClaw backend (Agent Bridge v2, default `http://127.0.0.1:8420`). When adding the plugin to `cordis.patch.yml`, wrap the row in a top-level `insert` entry; a bare `id` row is treated as an override and skipped when it does not already exist. See the Chinese section above for install, build and configuration details.

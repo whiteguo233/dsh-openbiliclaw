@@ -1,7 +1,7 @@
 {
   "name": "@openbiliclaw/dsh-plugin",
   "description": "OpenBiliClaw DeepSeek Harness plugin: the user-consumption side (recommendations, delight, saved, Socratic chat, profile, probes, activity) as a web-GUI sidebar, plus agent-bridge tools and the openbiliclaw-adapter skill for closed-loop use inside DSH.",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": false,
   "publishConfig": {
     "access": "public"
@@ -20,6 +20,9 @@
     },
     "./package.json": "./package.json"
   },
+  "engines": {
+    "dsh": "^0.2.1-rc.2"
+  },
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
@@ -35,36 +38,43 @@
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json && tsdown --env.DSH_BUILD_FACE client",
-    "watch": "tsdown --watch"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "tsc -p tsconfig.json && tsdown",
+    "watch": "tsdown --watch",
+    "pretest": "npm run build",
+    "test": "node --test test/*.test.mjs"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "^4.0.2",
-    "@deepseek-ai/dsh-client-ui-layout": "^0.1.5-rc.2",
-    "@deepseek-ai/dsh-client-ui-renderer": "^0.1.5-rc.2",
-    "@deepseek-ai/dsh-client-ui-sidebar": "^0.1.5-rc.2",
-    "@deepseek-ai/dsh-client-ui-slots": "^0.1.5-rc.2",
-    "@deepseek-ai/dsh-client-ui-theme": "^0.1.5-rc.2",
-    "@deepseek-ai/dsh-llm": "^0.1.5-rc.2",
-    "@deepseek-ai/dsh-tools": "^0.1.5-rc.2",
-    "@deepseek-ai/dsh-util-values": "^0.1.5-rc.2",
-    "@deepseek-ai/schemastery": "^3.18.2"
+    "@deepseek-ai/cordis": "~4.0.5",
+    "@deepseek-ai/dsh-client-ui-layout": "^0.2.1-rc.2",
+    "@deepseek-ai/dsh-client-ui-renderer": "^0.2.1-rc.2",
+    "@deepseek-ai/dsh-client-ui-sidebar": "^0.2.1-rc.2",
+    "@deepseek-ai/dsh-client-ui-theme": "^0.2.1-rc.2",
+    "@deepseek-ai/dsh-llm": "^0.2.1-rc.2",
+    "@deepseek-ai/dsh-skill": "^0.2.1-rc.2",
+    "@deepseek-ai/dsh-tools": "^0.2.1-rc.2",
+    "@deepseek-ai/dsh-util-values": "^0.2.1-rc.2",
+    "@deepseek-ai/schemastery": "~3.18.5"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "^4.0.2",
-    "@deepseek-ai/dsh-client-ui-layout": "^0.1.5-rc.2",
-    "@deepseek-ai/dsh-client-ui-renderer": "^0.1.5-rc.2",
-    "@deepseek-ai/dsh-client-ui-sidebar": "^0.1.5-rc.2",
-    "@deepseek-ai/dsh-client-ui-slots": "^0.1.5-rc.2",
-    "@deepseek-ai/dsh-client-ui-theme": "^0.1.5-rc.2",
-    "@deepseek-ai/dsh-llm": "^0.1.5-rc.2",
-    "@deepseek-ai/dsh-tools": "^0.1.5-rc.2",
-    "@deepseek-ai/dsh-util-values": "^0.1.5-rc.2",
-    "@deepseek-ai/schemastery": "^3.18.2",
+    "@deepseek-ai/cordis": "~4.0.5",
+    "@deepseek-ai/dsh-client-ui-layout": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-client-ui-renderer": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-client-ui-sidebar": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-client-ui-theme": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-llm": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-skill": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-tools": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-util-values": "0.2.1-rc.2",
+    "@deepseek-ai/schemastery": "~3.18.5",
+    "@types/node": "^22.10.0",
     "@types/react": "~18.3.1",
     "@types/react-dom": "~18.3.0",
+    "lightningcss": "^1.32.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "tsdown": "^0.22.2",
+    "typescript": "~5.9.0"
   },
   "files": [
     "lib/index.js",

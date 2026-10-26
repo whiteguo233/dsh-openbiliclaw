@@ -95,6 +95,11 @@ export class PanelLayoutController {
     column.style.display = 'flex'
     column.style.flexDirection = 'column'
     column.style.visibility = 'hidden'
+    // Explicit placement: DSH 0.2's frame grid also carries a bottom row, so an
+    // auto-placed fourth child lands in a new implicit row under the sidebar and
+    // steals the frame's height from the content row. Row 1 is the content row;
+    // the column slot is re-pinned in applyGrid().
+    column.style.gridRow = '1'
     frame.appendChild(column)
     this.column = column
 
@@ -143,6 +148,9 @@ export class PanelLayoutController {
     this.frame.style.gridTemplateColumns = grid
 
     if (this.column !== null) {
+      // Pin the column to the last (panel) track of the grid written above, so
+      // auto-placement can never move it into a shell row.
+      this.column.style.gridColumn = String(shell.length + 1)
       this.column.style.visibility = width > 0 ? 'visible' : 'hidden'
     }
     if (this.handle !== null) {
