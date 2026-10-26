@@ -122,7 +122,7 @@ DSH Agent（本插件注册的工具 + skill）── /api/agent-bridge（HTTP�
 ### 通过 GitHub 标签安装
 
 ```bash
-dsh plugin --profile web add 'github:whiteguo233/dsh-openbiliclaw#v0.5.0'
+dsh plugin --profile web add 'github:whiteguo233/dsh-openbiliclaw#v0.6.0'
 # 之后把 @openbiliclaw/dsh-plugin 加进该 profile package.json 的 dsh.profile.bundles
 ```
 
@@ -140,7 +140,7 @@ dsh plugin --profile web add 'github:whiteguo233/dsh-openbiliclaw#v0.5.0'
 把本仓库放进 web profile 的依赖目录并声明插件行：
 
 ```bash
-dsh plugin --profile <profile> add 'github:whiteguo233/dsh-openbiliclaw#v0.5.0'
+dsh plugin --profile <profile> add 'github:whiteguo233/dsh-openbiliclaw#v0.6.0'
 ```
 
 在 `~/.dsh/profiles/<profile>/cordis.patch.yml` 增加：
