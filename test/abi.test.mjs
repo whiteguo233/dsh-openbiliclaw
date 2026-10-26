@@ -18,10 +18,15 @@ const plugin = await import('../lib/index.js')
 /** The canonical adapter skill shipped beside the plugin source. */
 const SKILL_PATH = fileURLToPath(new URL('../skills/openbiliclaw-adapter/SKILL.md', import.meta.url))
 
-/** Build a recording context that exposes the services the plugin injects. */
-function recordingContext() {
+/**
+ * Build a recording context that exposes the services the plugin injects.
+ * `withWebServer` simulates a web profile; without it the browser bootstrap
+ * route stays inert, as it does on headless surfaces.
+ */
+function recordingContext({ withWebServer = false } = {}) {
   const tools = []
   const skills = []
+  const routes = []
   const ctx = {
     logger: () => ({ warn() {}, info() {}, error() {} }),
     effect: (callback) => {
@@ -40,8 +45,21 @@ function recordingContext() {
         return () => {}
       },
     },
+    inject: (deps, callback) => {
+      if (!withWebServer || !deps.includes('webServer')) return
+      const child = {
+        ...ctx,
+        webServer: {
+          register: (route) => {
+            routes.push(route)
+            return () => {}
+          },
+        },
+      }
+      callback(child)
+    },
   }
-  return { ctx, tools, skills }
+  return { ctx, tools, skills, routes }
 }
 
 test('plugin declares the DSH services it injects', () => {
@@ -84,4 +102,39 @@ test('a missing SKILL.md logs a warning instead of failing activation', () => {
   assert.doesNotThrow(() => plugin.apply(ctx, { skillPath: '/nonexistent/openbiliclaw/SKILL.md' }))
   assert.equal(skills.length, 0)
   assert.equal(tools.length, 22, 'tools still register')
+})
+
+test('browser bootstrap route exposes the row apiUrl on the web surface', () => {
+  const { ctx, routes } = recordingContext({ withWebServer: true })
+  plugin.apply(ctx, { apiUrl: 'http://127.0.0.1:18420' })
+  assert.equal(routes.length, 1)
+  assert.equal(routes[0].path, '/openbiliclaw/connection')
+  assert.equal(routes[0].kind, 'exact')
+  const res = {
+    headers: {},
+    setHeader(name, value) { this.headers[name] = value },
+    end(body) { this.body = body },
+  }
+  assert.doesNotThrow(() => routes[0].handler({ method: 'GET' }, res))
+  assert.equal(res.headers['cache-control'], 'no-store')
+  assert.deepEqual(JSON.parse(res.body), { apiUrl: 'http://127.0.0.1:18420', version: 1 })
+})
+
+test('browser bootstrap route rejects writes and stays out of headless surfaces', () => {
+  const web = recordingContext({ withWebServer: true })
+  plugin.apply(web.ctx, {})
+  assert.equal(web.routes.length, 1)
+
+  const rejected = { headers: {}, setHeader(name, value) { this.headers[name] = value }, end() {} }
+  web.routes[0].handler({ method: 'POST' }, rejected)
+  assert.equal(rejected.statusCode, 405)
+  assert.equal(rejected.headers.allow, 'GET, HEAD')
+
+  const answered = { headers: {}, setHeader(name, value) { this.headers[name] = value }, end(body) { this.body = body } }
+  web.routes[0].handler({ method: 'GET' }, answered)
+  assert.deepEqual(JSON.parse(answered.body), { apiUrl: 'http://127.0.0.1:8420', version: 1 })
+
+  const headless = recordingContext()
+  assert.doesNotThrow(() => plugin.apply(headless.ctx, {}))
+  assert.equal(headless.routes.length, 0, 'no route without a web server')
 })

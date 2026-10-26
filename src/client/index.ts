@@ -22,6 +22,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-ui-theme/client'
 import { createPanelLayoutStore } from './store.ts'
 import { PanelLayoutController } from './layout.ts'
+import { loadHostApiBase } from './host.ts'
 import { mountPanel, type PanelThemeFace } from './mount.tsx'
 import { OpenBiliClawSidebarButton } from './sidebarButton.tsx'
 
@@ -46,15 +47,28 @@ export function apply(ctx: ClientContext): void {
   }
 
   // Wire the column + panel. DOM failures degrade the panel, never the GUI.
+  // The panel waits for the host row's backend address (one same-origin read)
+  // so its first render already targets the backend the tools use.
   ctx.effect(() => {
     const disposers: Array<() => void> = []
+    let disposed = false
+    let disposePanel: (() => void) | undefined
     try {
       layout.mount()
-      disposers.push(mountPanel(layout, theme))
+      void loadHostApiBase().finally(() => {
+        if (disposed) return
+        try {
+          disposePanel = mountPanel(layout, theme)
+        } catch (error) {
+          console.error('[openbiliclaw] panel mount failed:', error)
+        }
+      })
     } catch (error) {
       console.error('[openbiliclaw] panel mount failed:', error)
     }
     return () => {
+      disposed = true
+      disposePanel?.()
       for (const dispose of disposers) dispose()
       layout.dispose()
     }

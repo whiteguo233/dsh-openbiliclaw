@@ -12,15 +12,34 @@ export const API_BASE_KEY = 'openbiliclaw.apiBase'
 /** Default local backend address. */
 export const DEFAULT_API_BASE = 'http://127.0.0.1:8420'
 
-/** Read the persisted API base URL (falling back to the default). */
+/**
+ * Backend address announced by the host plugin row (`apiUrl` in the cordis
+ * row config). Null until the browser half has read it. The node half's tools
+ * use that same value, so a configured row keeps both halves aligned.
+ */
+let hostApiBase: string | null = null
+
+/**
+ * Adopt the host row's backend address as the fallback for {@link readApiBase}.
+ * @param base - address from the host bootstrap route, or null.
+ */
+export function setHostApiBase(base: string | null): void {
+  const trimmed = base?.trim() ?? ''
+  hostApiBase = trimmed === '' ? null : trimmed.replace(/\/+$/, '')
+}
+
+/**
+ * Read the API base URL: the panel's own saved setting first, then the host
+ * row's configured address, then the built-in default.
+ */
 export function readApiBase(): string {
   try {
     const saved = localStorage.getItem(API_BASE_KEY)
     if (saved !== null && saved.trim() !== '') return saved.trim().replace(/\/+$/, '')
   } catch {
-    // localStorage unavailable (private mode etc.) — use the default.
+    // localStorage unavailable (private mode etc.) — fall through.
   }
-  return DEFAULT_API_BASE
+  return hostApiBase ?? DEFAULT_API_BASE
 }
 
 /** Persist the API base URL. */

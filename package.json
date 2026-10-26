@@ -1,7 +1,7 @@
 {
   "name": "@openbiliclaw/dsh-plugin",
   "description": "OpenBiliClaw DeepSeek Harness plugin: the user-consumption side (recommendations, delight, saved, Socratic chat, profile, probes, activity) as a web-GUI sidebar, plus agent-bridge tools and the openbiliclaw-adapter skill for closed-loop use inside DSH.",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": false,
   "publishConfig": {
     "access": "public"
@@ -50,6 +50,7 @@
     "@deepseek-ai/dsh-client-ui-renderer": "^0.2.1-rc.2",
     "@deepseek-ai/dsh-client-ui-sidebar": "^0.2.1-rc.2",
     "@deepseek-ai/dsh-client-ui-theme": "^0.2.1-rc.2",
+    "@deepseek-ai/dsh-host-webserver": "^0.2.1-rc.2",
     "@deepseek-ai/dsh-llm": "^0.2.1-rc.2",
     "@deepseek-ai/dsh-skill": "^0.2.1-rc.2",
     "@deepseek-ai/dsh-tools": "^0.2.1-rc.2",
@@ -62,6 +63,7 @@
     "@deepseek-ai/dsh-client-ui-renderer": "0.2.1-rc.2",
     "@deepseek-ai/dsh-client-ui-sidebar": "0.2.1-rc.2",
     "@deepseek-ai/dsh-client-ui-theme": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-host-webserver": "^0.2.1-rc.2",
     "@deepseek-ai/dsh-llm": "0.2.1-rc.2",
     "@deepseek-ai/dsh-skill": "0.2.1-rc.2",
     "@deepseek-ai/dsh-tools": "0.2.1-rc.2",

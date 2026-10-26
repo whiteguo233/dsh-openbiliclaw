@@ -9,7 +9,15 @@
 export declare const API_BASE_KEY = "openbiliclaw.apiBase";
 /** Default local backend address. */
 export declare const DEFAULT_API_BASE = "http://127.0.0.1:8420";
-/** Read the persisted API base URL (falling back to the default). */
+/**
+ * Adopt the host row's backend address as the fallback for {@link readApiBase}.
+ * @param base - address from the host bootstrap route, or null.
+ */
+export declare function setHostApiBase(base: string | null): void;
+/**
+ * Read the API base URL: the panel's own saved setting first, then the host
+ * row's configured address, then the built-in default.
+ */
 export declare function readApiBase(): string;
 /** Persist the API base URL. */
 export declare function writeApiBase(base: string): void;

@@ -8,6 +8,12 @@
  * are intentionally NOT exposed: the bridge's sync-account / sync-saved
  * commands are absent here.
  *
+ * The row config is the single source of truth for the backend address. The
+ * tools use it directly; the browser half reads it back from
+ * {@link CONNECTION_ROUTE} on first load, so the panel and the tools target
+ * the same backend instead of the panel silently falling back to its built-in
+ * default. An address saved in the panel's own settings still wins.
+ *
  * Config (row config in cordis.patch.yml; all optional):
  *   apiUrl         OpenBiliClaw serve-api base URL (default: http://127.0.0.1:8420)
  *   workdir        OpenBiliClaw checkout dir (config.toml + data live here; default: /Users/white/workspace/OpenBiliClaw)
@@ -16,7 +22,10 @@
  * @module @openbiliclaw/dsh-plugin
  */
 import { readFileSync } from 'node:fs'
+import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Context } from '@deepseek-ai/cordis'
+// Type-only: pulls the host webserver's Context merge (`ctx.webServer`) in.
+import type {} from '@deepseek-ai/dsh-host-webserver'
 import { createBridge, type BridgeConfig } from './bridge.ts'
 import { registerBridgeTools } from './tools.ts'
 import { loadAdapterSkill } from './skill.ts'
@@ -24,9 +33,13 @@ import { loadAdapterSkill } from './skill.ts'
 /** Plugin id for loader rows. */
 export const name = 'openbiliclaw'
 
-/** Required services: the tool registry, the skill registry, and the shell
- *  executor (the renamed `bash` seam in newer DSH snapshots). */
+/** Required services: the tool registry and the skill registry. The web server
+ *  is optional — headless profiles have none, and only the browser half's
+ *  bootstrap route needs it. */
 export const inject = ['tools', 'skills']
+
+/** Host route the browser half reads its initial backend address from. */
+export const CONNECTION_ROUTE = '/openbiliclaw/connection'
 
 /** Raw row config (no schema — every field defaults in code). */
 export interface OpenBiliClawRowConfig {
@@ -56,7 +69,28 @@ function resolveConfig(config: OpenBiliClawRowConfig | undefined): BridgeConfig 
 }
 
 /**
- * Plugin body: wire the bridge tools and the adapter skill.
+ * Answer the browser half's bootstrap request with the resolved backend
+ * address. GET/HEAD only; no secrets are exposed (the address is already
+ * visible to anyone who can reach the panel).
+ * @param config - the resolved bridge config.
+ * @param req - incoming request.
+ * @param res - response to complete.
+ */
+export function serveConnection(config: BridgeConfig, req: IncomingMessage, res: ServerResponse): void {
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    res.statusCode = 405
+    res.setHeader('allow', 'GET, HEAD')
+    res.end()
+    return
+  }
+  res.setHeader('content-type', 'application/json; charset=utf-8')
+  res.setHeader('cache-control', 'no-store')
+  res.end(JSON.stringify({ apiUrl: config.apiUrl, version: 1 }))
+}
+
+/**
+ * Plugin body: wire the bridge tools, the adapter skill, and the browser
+ * bootstrap route.
  * @param ctx - plugin context.
  * @param config - raw row config (optional; defaults apply).
  */
@@ -78,4 +112,14 @@ export function apply(ctx: Context, config?: OpenBiliClawRowConfig): void {
     const skill = loadAdapterSkill(skillText, resolved.skillPath)
     ctx.effect(() => ctx.skills.register(skill), 'openbiliclaw: adapter skill')
   }
+
+  // Browser half bootstrap. `inject` keeps this inert on headless profiles,
+  // where no web server ever appears; the tools above stay available there.
+  ctx.inject(['webServer'], (web) => {
+    web.effect(() => web.webServer.register({
+      kind: 'exact',
+      path: CONNECTION_ROUTE,
+      handler: (req, res) => { serveConnection(resolved, req, res) },
+    }), 'openbiliclaw: browser bootstrap route')
+  })
 }

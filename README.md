@@ -168,10 +168,18 @@ dsh web   # 重启 DSH Web 进程，刷新页面
 
 | 键 | 默认 | 说明 |
 |---|---|---|
-| `apiUrl` | `http://127.0.0.1:8420` | 运行中的 OpenBiliClaw serve-api（Agent Bridge v2 端点） |
+| `apiUrl` | `http://127.0.0.1:8420` | 运行中的 OpenBiliClaw serve-api（Agent Bridge v2 端点）。**同时**通过 host 路由 `/openbiliclaw/connection` 提供给面板，作为浏览器半的初始后端地址 |
 | `workdir` | 插件作者的本地 checkout | OpenBiliClaw 后端项目根目录；`skillPath` 未配时由它推导，**建议显式配置** |
 | `skillPath` | `<workdir>/skills/openbiliclaw-adapter/SKILL.md` | adapter skill 文件；读不到时只告警，不阻断激活 |
 | `timeoutMs` | `300000` | 单次 bridge 调用超时 |
+
+后端地址的解析顺序（面板与 Agent 工具共用同一个 `apiUrl` 来源）：
+
+1. 面板「设置 → 通用 → 连接」里保存的地址（`localStorage`，用户显式改过就归它管）；
+2. cordis 行的 `apiUrl` —— 面板启动时读取同源路由 `/openbiliclaw/connection`，所以配置一次两半都生效；
+3. 内置默认 `http://127.0.0.1:8420`。
+
+headless 等没有 web 服务的场景下该路由不会注册，工具仍照常可用。
 
 ## 构建
 
