@@ -3,6 +3,13 @@
 本仓库（DSH 客户端插件）的版本记录。安装方式见 [README](README.md)：
 `dsh plugin --profile <profile> add 'github:whiteguo233/dsh-openbiliclaw#<tag>'`。
 
+## v0.6.2 (2026-10-26)
+
+**发布到 npm 的元数据版本（代码同 v0.6.1）**
+
+- 补齐 npm 包元数据：`repository` / `homepage` / `bugs` / `keywords`（`dsh-plugin`、`deepseek-harness` 等），便于 npm 搜索与插件市场从包元数据同步。
+- 包名 `@openbiliclaw/dsh-plugin`，需先创建 npm 组织 `openbiliclaw` 并 `npm login` 后 `npm publish --access public`。
+
 ## v0.6.1 (2026-10-26)
 
 **修复：`save_local` 把 item_key 的平台前缀重复拼接**
