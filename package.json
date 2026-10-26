@@ -1,7 +1,7 @@
 {
   "name": "@openbiliclaw/dsh-plugin",
-  "description": "OpenBiliClaw DeepSeek Harness plugin: the user-consumption side (recommendations, delight, saved, Socratic chat, profile, probes, activity) as a web-GUI sidebar, plus agent-bridge tools and the openbiliclaw-adapter skill for closed-loop use inside DSH.",
-  "version": "0.6.2",
+  "description": "OpenBiliClaw for DSH: a sidebar recommendation panel (feed, library, dialogue, profile, settings) plus 22 Agent Bridge tools, so the agent can read recommendations, answer probes and close the loop. OpenBiliClaw DSH \u5ba2\u6237\u7aef\u63d2\u4ef6\uff1a\u4fa7\u8fb9\u680f\u63a8\u8350\u9762\u677f + 22 \u4e2a Agent Bridge \u5de5\u5177\u3002",
+  "version": "0.6.3",
   "private": false,
   "publishConfig": {
     "access": "public"

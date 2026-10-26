@@ -106,6 +106,16 @@ DSH Agent（本插件注册的工具 + skill）── /api/agent-bridge（HTTP�
 | `src/client/*` | browser 半：左侧栏按钮（`sidebar.footer.action`）+ 右侧面板列（DOM 挂载进帧网格，React），含推荐/内容库/对话/画像/设置/消息抽屉、WebSocket 实时流、深色模式 |
 | `lib/` | 构建产物（`lib/index.js` node 半 + `lib/client.js` 浏览器半），可直接安装 |
 
+## 运行时验证
+
+[dsh-plugin-verify](https://github.com/qing3a/dsh-plugin-verify)（Verified DSH Plugins 判定站）用 mock-llm 跑完整 agent 循环，在 **DSH 0.2.1-rc.3**（`deepseek-harness` master `22ddee37`）上验证：
+
+**✅ 通过 ｜ waterfall 7/7 ｜ tools/result 是 ｜ 捕获事件 13**
+
+- 报告与收录 PR：[qing3a/dsh-plugin-verify#9](https://github.com/qing3a/dsh-plugin-verify/pull/9)（含 `verify-report.json`；收录待维护者复核）
+- 自助复现：`npx dsh-plugin-verify <本仓库> --repo <DSH checkout>`
+- 注意：checkout 需要先跑 `pnpm build:lib:host && pnpm build:lib:client && pnpm build:native-system`，缺原生 `system.node` 时 headless 会在 2/7 卡住——那不是插件问题。
+
 ## 安装
 
 ### 前置

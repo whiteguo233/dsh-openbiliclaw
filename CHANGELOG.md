@@ -3,6 +3,14 @@
 本仓库（DSH 客户端插件）的版本记录。安装方式见 [README](README.md)：
 `dsh plugin --profile <profile> add 'github:whiteguo233/dsh-openbiliclaw#<tag>'`。
 
+## v0.6.3 (2026-10-26)
+
+**运行时验证通过 + npm 包描述双语化**
+
+- [dsh-plugin-verify](https://github.com/qing3a/dsh-plugin-verify) 在 DSH 0.2.1-rc.3（`22ddee37`）上跑通 mock-llm 完整 agent 循环：**waterfall 7/7、tools/result 是、捕获事件 13**；收录 PR：[#9](https://github.com/qing3a/dsh-plugin-verify/pull/9)。
+- README 增加「运行时验证」章节（含复现命令与 native 模块的坑）。
+- `package.json` 描述改为中英双语，便于 npm 与各插件目录抓取。
+
 ## v0.6.2 (2026-10-26)
 
 **发布到 npm 的元数据版本（代码同 v0.6.1）**
