@@ -19,9 +19,10 @@
  *
  * @module @openbiliclaw/dsh-plugin
  */
+import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
-import { basename, dirname, resolve as resolvePath } from 'node:path'
+import { basename, dirname, relative, resolve as resolvePath, sep } from 'node:path'
 import { defineConfig, type UserConfig } from 'tsdown'
 import { transform } from 'lightningcss'
 
@@ -121,14 +122,25 @@ const clientHalf: UserConfig = {
         // The virtual id otherwise hides the physical stylesheet from the watch graph.
         this.addWatchFile(fileId)
         const source = await readFile(fileId)
+        // lightningcss's own [hash] placeholder is process-random, so two builds
+        // of unchanged sources produced different class names and a rewritten
+        // bundle every time. Hash the repo-relative path + content instead: the
+        // class names stay stable across machines, checkouts and rebuilds.
+        const cssHash = createHash('sha256')
+          .update(`${relative(process.cwd(), fileId).split(sep).join('/')}\n`)
+          .update(source)
+          .digest('hex')
+          .slice(0, 6)
         const { code, exports: cssExports } = transform({
           filename: fileId,
           code: source,
-          cssModules: { pattern: '[hash]_[local]' },
+          cssModules: { pattern: `_${cssHash}_[local]` },
           minify: true,
         })
         const classMap: Record<string, string> = {}
-        for (const [local, exp] of Object.entries(cssExports ?? {})) classMap[local] = exp.name
+        // lightningcss exposes the export map in hash order; sort it so the
+        // emitted object (and therefore the bundle) is byte-stable per build.
+        for (const [local, exp] of Object.entries(cssExports ?? {}).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) classMap[local] = exp.name
         return [
           `const css = ${JSON.stringify(code.toString())};`,
           `const tagId = ${JSON.stringify(`${PLUGIN_ID}/${basename(fileId)}`)};`,

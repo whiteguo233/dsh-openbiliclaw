@@ -9,6 +9,7 @@
 
 - 补齐 npm 包元数据：`repository` / `homepage` / `bugs` / `keywords`（`dsh-plugin`、`deepseek-harness` 等），便于 npm 搜索与插件市场从包元数据同步。
 - 包名 `@openbiliclaw/dsh-plugin`，需先创建 npm 组织 `openbiliclaw` 并 `npm login` 后 `npm publish --access public`。
+- 构建可复现：CSS Modules 的类名哈希改为「仓库相对路径 + 内容」的 SHA-256 前缀（lightningcss 自带的 `[hash]` 每次进程随机），类名导出表按 key 排序。同样源码连续构建产物字节一致，之前每构建一次 `lib/client.js` 都会整文件变动。
 
 ## v0.6.1 (2026-10-26)
 
