@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Context } from '@deepseek-ai/cordis';
 import { type BridgeConfig } from './bridge.ts';
+export { resolveSaveTarget, splitItemKey } from './tools.ts';
 /** Plugin id for loader rows. */
 export declare const name = "openbiliclaw";
 /** Required services: the tool registry and the skill registry. The web server

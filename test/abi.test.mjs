@@ -138,3 +138,30 @@ test('browser bootstrap route rejects writes and stays out of headless surfaces'
   assert.doesNotThrow(() => plugin.apply(headless.ctx, {}))
   assert.equal(headless.routes.length, 0, 'no route without a web server')
 })
+
+test('save-local splits a platform-prefixed item key instead of double-prefixing it', () => {
+  // The bridge CLI composes `<platform>:<content-id>` itself, so the tool must
+  // hand it the bare id. `bilibili:bilibili:BV...` used to reach the database.
+  assert.deepEqual(plugin.splitItemKey('bilibili:BV1Ennp6SE5B'), { sourcePlatform: 'bilibili', contentId: 'BV1Ennp6SE5B' })
+  assert.deepEqual(plugin.splitItemKey('github:repository:946380199'), { sourcePlatform: 'github', contentId: 'repository:946380199' })
+  assert.deepEqual(plugin.splitItemKey('twitter:12345'), { sourcePlatform: 'x', contentId: '12345' })
+  assert.equal(plugin.splitItemKey('BV1Ennp6SE5B'), null, 'a bare bvid carries no prefix')
+  assert.equal(plugin.splitItemKey('not-a-platform:thing'), null, 'unknown prefixes pass through untouched')
+
+  assert.deepEqual(
+    plugin.resolveSaveTarget('bilibili:BV1Ennp6SE5B', undefined),
+    { sourcePlatform: 'bilibili', contentId: 'BV1Ennp6SE5B' },
+  )
+  assert.deepEqual(
+    plugin.resolveSaveTarget('bilibili:BV1Ennp6SE5B', 'bilibili'),
+    { sourcePlatform: 'bilibili', contentId: 'BV1Ennp6SE5B' },
+  )
+  assert.deepEqual(
+    plugin.resolveSaveTarget('BV1Ennp6SE5B', undefined),
+    { sourcePlatform: 'bilibili', contentId: 'BV1Ennp6SE5B' },
+  )
+  assert.deepEqual(
+    plugin.resolveSaveTarget('BV1Ennp6SE5B', 'douyin'),
+    { sourcePlatform: 'douyin', contentId: 'BV1Ennp6SE5B' },
+  )
+})
