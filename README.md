@@ -103,7 +103,7 @@ DSH Agent（本插件注册的工具 + skill）── /api/agent-bridge（HTTP�
 | `src/index.ts` + `src/tools.ts` | node 半：22 个 `openbiliclaw_*` 工具（经 serve-api 的 `/api/agent-bridge` HTTP 调用后端，无需 shell 执行器）+ 注册 adapter skill |
 | `src/skill.ts` | 解析 SKILL.md frontmatter 并注册为 DSH skill |
 | `src/bridge.ts` | Agent Bridge v2 HTTP 调用封装（超时 / 错误归一化） |
-| `src/client/*` | browser 半：左侧栏按钮（`sidebar.footer.action`）+ 右侧面板列（DOM 挂载进帧网格，React），含推荐/内容库/对话/画像/设置/消息抽屉、WebSocket 实时流、深色模式 |
+| `src/client/*` | browser 半：左侧栏按钮（`sidebar.footer.action`）+ 右侧面板条（frame `padding-right` 预留 + 绝对定位，React），含推荐/内容库/对话/画像/设置/消息抽屉、WebSocket 实时流、深色模式 |
 | `lib/` | 构建产物（`lib/index.js` node 半 + `lib/client.js` 浏览器半），可直接安装 |
 
 ## 运行时验证
@@ -143,7 +143,7 @@ dsh plugin --profile web add 'github:whiteguo233/dsh-openbiliclaw#v0.6.0'
 无需改 DSH 源码，插件自己完成两处挂载：
 
 - **左侧按钮**：注册到官方 `sidebar.footer.action` 加法槽（侧边栏底部、设置旁的附加动作）
-- **右侧面板**：DSH 0.2 的帧网格没有 aside 列，插件在帧上追加一条显式 `grid-row: 1 / grid-column: 4` 的列，并把 `grid-template-columns` 重写成「壳层轨道 + 面板宽度」，所以打开面板是**挤开中间内容**而不是浮层覆盖；面板收起时该轨道宽度为 0。
+- **右侧面板**：DSH 0.2 的帧网格没有 aside 列，插件**不改写宿主的 `grid-template-columns`**（v0.6.3 之前会追加第 4 轨并把中心轨改成 `minmax(0px, 1fr)`，会把 ds-bot team view 的 `_centerCol` 压成 0px，见 [#15](https://github.com/whiteguo233/dsh-openbiliclaw/issues/15)）。现在改为给 frame 加 `padding-right` 预留面板条，面板列绝对定位在预留区里，所以打开面板同样是**挤开中间内容**而不是浮层覆盖，而宿主的三轨（含右栏打开时中心列的 400px 下限）原样保留；面板收起时预留宽度为 0。
 
 ### 2. 安装插件包
 
