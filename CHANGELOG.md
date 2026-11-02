@@ -3,6 +3,19 @@
 本仓库（DSH 客户端插件）的版本记录。安装方式见 [README](README.md)：
 `dsh plugin --profile <profile> add 'github:whiteguo233/dsh-openbiliclaw#<tag>'`。
 
+## v0.6.4 (2026-11-01)
+
+**主题：面板不再改写宿主网格（修 [#15](https://github.com/whiteguo233/dsh-openbiliclaw/issues/15)）**
+
+- 面板挂载不再触碰 `grid-template-columns`。v0.6.3 及以前会追加第 4 轨、并把中心轨从 `minmax(400px, 1fr)` 重写成 `minmax(0px, 1fr)`，于是任何依赖「宿主三轨」的视图都会坏——ds-bot team view 的 `_centerCol` 被压成 0px（它的左栏是 `position: fixed` 自己画的，所以只剩中间区消失）。
+- 新做法：给 frame 加 `padding-right` 预留面板条，面板列绝对定位在预留区里。同样是「挤开中间内容」而不是浮层覆盖，但宿主的三轨（含右栏打开时中心列的 400px 下限）原样保留，谁也不用跟一个没被改过的轨道数对齐。
+- 面板宽度夹取改为扣掉「侧栏 + 右栏声明上限 + 宿主中心列下限」，不再只扣侧栏；空间不足时先让右栏按宿主自己的规则收缩，再不够才让面板降到 280px 以下（直至 0 收起），宁可面板变窄也不压在会话区上——中心列不再被牺牲。
+- frame 被宿主重渲染替换时自动重挂（此前 `mount()` 只 attach 一次，换视图后会一直往已脱离文档的旧节点写）；卸载 / 重挂时把 frame 的 `padding-right`、`box-sizing`、`position` 恢复原值。定位只在 computed `position: static` 时才设为 `relative`，不抢其他插件的包含块。
+- `findFrame()` 现在要求同级存在 `_centerCol`，第三方视图里的同名 `sidebarCol` 节点不会把面板骗走。
+- 面板仍只覆盖内容行：绝对定位相对的是 padding box，所以把 frame 自身的 `padding-top`（Windows 标题栏留白）和 `shell.bottom` 底行高度重新算进列的 `top` / `bottom` 偏移，不会盖住别家插件塞进底行的内容，也不改变 Windows 下的垂直起点。
+- 新增 `test/layout.test.mjs`（11 条，fake DOM）：断言「绝不写宿主 grid」「预留条与列宽一致」「关掉后样式复原」「frame 被替换后重挂」「static frame 变包含块」，`npm test` 共 18 条通过。
+- Chrome 实机对照（1478/1280/1160/1000/900 五个窗口宽度，脚本读 computed style）：中心列旧版 `338/140/20/0/0`，新版**全部为 400**（宿主自己的下限）；面板宽度新版 `318/280/280/280/220`，`grid-template-columns` 与宿主写入值逐字节相同、`轨道和 + 预留宽` 在五个宽度上都不超出 frame。1000px 就是 #15 的现场：旧版 `280px 0px 400px 320px`（中间 0），新版 `280px 400px 40px`。
+
 ## v0.6.3 (2026-10-26)
 
 **运行时验证通过 + npm 包描述双语化**
