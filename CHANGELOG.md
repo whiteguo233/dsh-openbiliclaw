@@ -13,7 +13,8 @@
 - frame 被宿主重渲染替换时自动重挂（此前 `mount()` 只 attach 一次，换视图后会一直往已脱离文档的旧节点写）；卸载 / 重挂时把 frame 的 `padding-right`、`box-sizing`、`position` 恢复原值。定位只在 computed `position: static` 时才设为 `relative`，不抢其他插件的包含块。
 - `findFrame()` 现在要求同级存在 `_centerCol`，第三方视图里的同名 `sidebarCol` 节点不会把面板骗走。
 - 面板仍只覆盖内容行：绝对定位相对的是 padding box，所以把 frame 自身的 `padding-top`（Windows 标题栏留白）和 `shell.bottom` 底行高度重新算进列的 `top` / `bottom` 偏移，不会盖住别家插件塞进底行的内容，也不改变 Windows 下的垂直起点。
-- 新增 `test/layout.test.mjs`（11 条，fake DOM）：断言「绝不写宿主 grid」「预留条与列宽一致」「关掉后样式复原」「frame 被替换后重挂」「static frame 变包含块」，`npm test` 共 18 条通过。
+- 新增 `test/layout.test.mjs`（12 条，fake DOM）：断言「绝不写宿主 grid」「预留条与列宽一致」「关掉后样式复原」「frame 被替换后重挂」「static frame 变包含块」「padding-top / 底行偏移」，`npm test` 共 19 条通过。
+- 新增 `screenshots.json`：插件市场详情页用的 5 张截图清单（指向 `docs/screenshots/`）。
 - Chrome 实机对照（1478/1280/1160/1000/900 五个窗口宽度，脚本读 computed style）：中心列旧版 `338/140/20/0/0`，新版**全部为 400**（宿主自己的下限）；面板宽度新版 `318/280/280/280/220`，`grid-template-columns` 与宿主写入值逐字节相同、`轨道和 + 预留宽` 在五个宽度上都不超出 frame。1000px 就是 #15 的现场：旧版 `280px 0px 400px 320px`（中间 0），新版 `280px 400px 40px`。
 
 ## v0.6.3 (2026-10-26)
